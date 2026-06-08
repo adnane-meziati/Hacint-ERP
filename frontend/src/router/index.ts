@@ -103,7 +103,12 @@ const router = createRouter({
           name: 'workflow-apn',
           component: () => import('@/views/WorkflowApnView.vue'),
         },
-        // ── ERP Modules ──────────────────────────────────────────────────────
+          {
+          path: 'jimide-4030',
+          name: 'jimide-4030',
+          component: () => import('@/views/Jimide4030View.vue'),
+        },
+      // ── ERP Modules ──────────────────────────────────────────────────────
         {
           path: 'sales',
           name: 'sales',

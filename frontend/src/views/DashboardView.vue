@@ -4,7 +4,7 @@
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-bold" style="color:var(--text-hi)">{{ t('nav.dashboard') }}</h1>
-        <p class="text-sm mt-0.5" style="color:var(--text-lo)">MEGAINDUS ERP — Tableau de bord</p>
+        <p class="text-sm mt-0.5" style="color:var(--text-lo)">HACINT ERP — Tableau de bord</p>
       </div>
       <span class="text-xs" style="color:var(--text-lo)">Mis à jour {{ now }}</span>
     </div>

@@ -9,9 +9,9 @@
       <div
         class="w-8 h-8 rounded flex items-center justify-center mr-3 shrink-0 font-black text-xs"
         style="background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.3); color: var(--accent)"
-      >M</div>
+      >H</div>
       <div class="min-w-0">
-        <div class="font-bold text-sm tracking-widest truncate leading-tight" style="color: var(--text-hi)">MEGAINDUS</div>
+        <div class="font-bold text-sm tracking-widest truncate leading-tight" style="color: var(--text-hi)">HACINT</div>
         <div class="text-[10px] tracking-wider uppercase truncate" style="color: var(--text-lo)">ERP · TAC2</div>
       </div>
     </div>
@@ -86,6 +86,10 @@
       <RouterLink to="/workflow" active-class="nav-link-active" class="nav-link">
         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 010 2H5a1 1 0 01-1-1zm0 7a1 1 0 011-1h4a1 1 0 010 2H5a1 1 0 01-1-1zm10-7a1 1 0 011-1h4a1 1 0 010 2h-4a1 1 0 01-1-1zm0 7a1 1 0 011-1h4a1 1 0 010 2h-4a1 1 0 01-1-1zm-10 5a1 1 0 011-1h4a1 1 0 010 2H5a1 1 0 01-1-1zm10 0a1 1 0 011-1h4a1 1 0 010 2h-4a1 1 0 01-1-1z"/></svg>
         <span>{{ t('nav.workflow') }}</span>
+      </RouterLink>
+      <RouterLink to="/jimide-4030" active-class="nav-link-active" class="nav-link">
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <span>JIMIDE-4030</span>
       </RouterLink>
       <RouterLink to="/planning" active-class="nav-link-active" class="nav-link">
         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
