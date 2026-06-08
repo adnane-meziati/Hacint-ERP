@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>OP {{ order.n_ordre }} — {{ order.client.code }}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; font-size: 10pt; color: #1a1a1a; padding: 20mm; }
+    h1 { font-size: 16pt; color: #1F4E79; margin-bottom: 4mm; }
+    .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; margin-bottom: 8mm; }
+    .meta-item label { font-size: 8pt; text-transform: uppercase; color: #666; display: block; }
+    .meta-item span  { font-size: 11pt; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; margin-top: 6mm; }
+    thead th { background: #1F4E79; color: white; padding: 4mm 3mm; text-align: left; font-size: 9pt; }
+    tbody td { padding: 3mm; border-bottom: 0.3mm solid #e5e5e5; font-size: 9pt; vertical-align: top; }
+    tbody tr:nth-child(even) td { background: #f7f9fc; }
+    .stage-cell { display: flex; flex-wrap: wrap; gap: 1mm; }
+    .stage-badge {
+      display: inline-block; padding: 0.5mm 2mm; border-radius: 2mm;
+      font-size: 7.5pt; font-weight: bold;
+    }
+    .stage-done    { background: #d1fae5; color: #065f46; }
+    .stage-pending { background: #f3f4f6; color: #6b7280; }
+    .stage-blocked { background: #fee2e2; color: #991b1b; }
+    .priority-urgent { color: #dc2626; font-weight: bold; }
+    .priority-normal { color: #1d4ed8; }
+    .footer { margin-top: 10mm; font-size: 8pt; color: #999; text-align: right; }
+  </style>
+</head>
+<body>
+  <h1>Ordre de Production N° {{ order.n_ordre }}</h1>
+
+  <div class="meta">
+    <div class="meta-item">
+      <label>Client</label>
+      <span>{{ order.client.code }} — {{ order.client.name }}</span>
+    </div>
+    <div class="meta-item">
+      <label>Statut</label>
+      <span>{{ order.get_status_display }}</span>
+    </div>
+    <div class="meta-item">
+      <label>Date de création</label>
+      <span>{{ order.creation_date }}</span>
+    </div>
+    <div class="meta-item">
+      <label>Date de livraison prévue</label>
+      <span>{{ order.delivery_date }}</span>
+    </div>
+  </div>
+
+  {% if order.notes %}
+  <p style="font-size:9pt; color:#555; margin-bottom:6mm;"><em>{{ order.notes }}</em></p>
+  {% endif %}
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:6%">Série</th>
+        <th style="width:14%">Référence</th>
+        <th style="width:22%">Désignation</th>
+        <th style="width:6%">Qté</th>
+        <th style="width:8%">Priorité</th>
+        <th style="width:10%">Statut</th>
+        <th>Avancement des étapes</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for line in order.lines.all %}
+      <tr>
+        <td>{{ line.n_serie }}</td>
+        <td style="font-family:monospace">{{ line.article.ref_client }}</td>
+        <td>{{ line.article.description }}</td>
+        <td>{{ line.quantity }}</td>
+        <td class="priority-{{ line.priority }}">{{ line.get_priority_display }}</td>
+        <td>{{ line.get_status_display }}</td>
+        <td>
+          <div class="stage-cell">
+            {% for ev in line.events.all %}
+            <span class="stage-badge stage-{{ ev.status }}">{{ ev.stage.code }}</span>
+            {% endfor %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="footer">
+    Imprimé le {% now "d/m/Y H:i" %} — MEGAINDUS ERP / HACINT
+  </div>
+</body>
+</html>
