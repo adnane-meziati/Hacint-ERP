@@ -2,13 +2,13 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-megaindus}
-      POSTGRES_USER: ${POSTGRES_USER:-megaindus}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-megaindus}
+      POSTGRES_DB: ${POSTGRES_DB:-hacint}
+      POSTGRES_USER: ${POSTGRES_USER:-hacint}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hacint}
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-megaindus}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hacint}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -31,7 +31,7 @@ services:
       - media:/app/media
     env_file: .env
     environment:
-      DJANGO_SETTINGS_MODULE: megaindus.settings.dev
+      DJANGO_SETTINGS_MODULE: hacint.settings.dev
     depends_on:
       db:
         condition: service_healthy
@@ -42,13 +42,13 @@ services:
     build:
       context: ./backend
       target: dev
-    command: celery -A megaindus worker -l info
+    command: celery -A hacint worker -l info
     volumes:
       - ./backend:/app
       - media:/app/media
     env_file: .env
     environment:
-      DJANGO_SETTINGS_MODULE: megaindus.settings.dev
+      DJANGO_SETTINGS_MODULE: hacint.settings.dev
     depends_on:
       db:
         condition: service_healthy
@@ -59,12 +59,12 @@ services:
     build:
       context: ./backend
       target: dev
-    command: celery -A megaindus beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    command: celery -A hacint beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes:
       - ./backend:/app
     env_file: .env
     environment:
-      DJANGO_SETTINGS_MODULE: megaindus.settings.dev
+      DJANGO_SETTINGS_MODULE: hacint.settings.dev
     depends_on:
       - worker
 

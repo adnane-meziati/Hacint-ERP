@@ -29,13 +29,13 @@ services:
     build:
       context: ./backend
       target: prod
-    command: gunicorn megaindus.wsgi:application --bind 0.0.0.0:8000 --workers 4 --timeout 120
+    command: gunicorn hacint.wsgi:application --bind 0.0.0.0:8000 --workers 4 --timeout 120
     volumes:
       - media:/app/media
       - static:/app/staticfiles
     env_file: .env
     environment:
-      DJANGO_SETTINGS_MODULE: megaindus.settings.prod
+      DJANGO_SETTINGS_MODULE: hacint.settings.prod
     restart: unless-stopped
     depends_on:
       db:
@@ -47,12 +47,12 @@ services:
     build:
       context: ./backend
       target: prod
-    command: celery -A megaindus worker -l info --concurrency 4
+    command: celery -A hacint worker -l info --concurrency 4
     volumes:
       - media:/app/media
     env_file: .env
     environment:
-      DJANGO_SETTINGS_MODULE: megaindus.settings.prod
+      DJANGO_SETTINGS_MODULE: hacint.settings.prod
     restart: unless-stopped
     depends_on:
       db:
@@ -64,10 +64,10 @@ services:
     build:
       context: ./backend
       target: prod
-    command: celery -A megaindus beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    command: celery -A hacint beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     env_file: .env
     environment:
-      DJANGO_SETTINGS_MODULE: megaindus.settings.prod
+      DJANGO_SETTINGS_MODULE: hacint.settings.prod
     restart: unless-stopped
     depends_on:
       - worker

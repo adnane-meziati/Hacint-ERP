@@ -40,7 +40,7 @@ shell:
 	$(EXEC_WEB) python manage.py shell
 
 dbshell:
-	$(COMPOSE) exec db psql -U $${POSTGRES_USER:-megaindus} $${POSTGRES_DB:-megaindus}
+	$(COMPOSE) exec db psql -U $${POSTGRES_USER:-hacint} $${POSTGRES_DB:-hacint}
 
 logs:
 	$(COMPOSE) logs -f

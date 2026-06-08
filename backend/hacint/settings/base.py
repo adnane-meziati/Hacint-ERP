@@ -71,7 +71,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "megaindus.urls"
+ROOT_URLCONF = "hacint.urls"
 
 TEMPLATES = [
     {
@@ -89,14 +89,14 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "megaindus.wsgi.application"
+WSGI_APPLICATION = "hacint.wsgi.application"
 
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": config("POSTGRES_DB", default="megaindus"),
-        "USER": config("POSTGRES_USER", default="megaindus"),
-        "PASSWORD": config("POSTGRES_PASSWORD", default="megaindus"),
+        "NAME": config("POSTGRES_DB", default="hacint"),
+        "USER": config("POSTGRES_USER", default="hacint"),
+        "PASSWORD": config("POSTGRES_PASSWORD", default="hacint"),
         "HOST": config("POSTGRES_HOST", default="db"),
         "PORT": config("POSTGRES_PORT", default="5432"),
     }
@@ -174,7 +174,7 @@ CORS_ALLOW_CREDENTIALS = True
 
 # ── drf-spectacular ───────────────────────────────────────────────────────────
 SPECTACULAR_SETTINGS = {
-    "TITLE": "MEGAINDUS ERP API",
+    "TITLE": "HACINT ERP API",
     "DESCRIPTION": "CNC machining order tracking system for HACINT / APTIV.",
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,

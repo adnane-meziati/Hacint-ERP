@@ -3,4 +3,4 @@ from django.conf import settings
 
 
 def pytest_configure() -> None:
-    settings.DATABASES["default"]["NAME"] = "megaindus_test"
+    settings.DATABASES["default"]["NAME"] = "hacint_test"

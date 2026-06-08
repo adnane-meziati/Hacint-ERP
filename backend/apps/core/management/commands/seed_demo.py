@@ -25,13 +25,13 @@ from apps.sales.models import Customer, SalesOrder, SalesOrderLine
 
 
 USERS = [
-    {"username": "admin",      "password": "Admin1234!",  "role": Role.ADMIN,       "email": "admin@megaindus.ma",      "first_name": "Admin"},
-    {"username": "planner",    "password": "Plan1234!",   "role": Role.PLANNER,     "email": "planner@megaindus.ma",    "first_name": "Planner"},
-    {"username": "designer",   "password": "Dsgn1234!",   "role": Role.DESIGNER,    "email": "designer@megaindus.ma",   "first_name": "Designer"},
-    {"username": "programmer", "password": "Prog1234!",   "role": Role.PROGRAMMER,  "email": "programmer@megaindus.ma", "first_name": "Programmer"},
-    {"username": "operator",   "password": "Oper1234!",   "role": Role.OPERATOR,    "email": "operator@megaindus.ma",   "first_name": "Operator"},
-    {"username": "assembly",   "password": "Assy1234!",   "role": Role.ASSEMBLY,    "email": "assembly@megaindus.ma",   "first_name": "Assembly"},
-    {"username": "qc",         "password": "Qual1234!",   "role": Role.QC,          "email": "qc@megaindus.ma",         "first_name": "Quality"},
+    {"username": "admin",      "password": "Admin1234!",  "role": Role.ADMIN,       "email": "admin@hacint.com.cn",      "first_name": "Admin"},
+    {"username": "planner",    "password": "Plan1234!",   "role": Role.PLANNER,     "email": "planner@hacint.com.cn",    "first_name": "Planner"},
+    {"username": "designer",   "password": "Dsgn1234!",   "role": Role.DESIGNER,    "email": "designer@hacint.com.cn",   "first_name": "Designer"},
+    {"username": "programmer", "password": "Prog1234!",   "role": Role.PROGRAMMER,  "email": "programmer@hacint.com.cn", "first_name": "Programmer"},
+    {"username": "operator",   "password": "Oper1234!",   "role": Role.OPERATOR,    "email": "operator@hacint.com.cn",   "first_name": "Operator"},
+    {"username": "assembly",   "password": "Assy1234!",   "role": Role.ASSEMBLY,    "email": "assembly@hacint.com.cn",   "first_name": "Assembly"},
+    {"username": "qc",         "password": "Qual1234!",   "role": Role.QC,          "email": "qc@hacint.com.cn",         "first_name": "Quality"},
     {"username": "client",     "password": "Clie1234!",   "role": Role.CLIENT,      "email": "client@aptiv.com",        "first_name": "Client"},
 ]
 

@@ -33,9 +33,9 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: megaindus_test
-          POSTGRES_USER: megaindus
-          POSTGRES_PASSWORD: megaindus
+          POSTGRES_DB: hacint_test
+          POSTGRES_USER: hacint
+          POSTGRES_PASSWORD: hacint
         ports:
           - 5432:5432
         options: >-
@@ -53,11 +53,11 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DJANGO_SETTINGS_MODULE: megaindus.settings.dev
+      DJANGO_SETTINGS_MODULE: hacint.settings.dev
       SECRET_KEY: ci-secret-key-not-used-in-prod
-      POSTGRES_DB: megaindus_test
-      POSTGRES_USER: megaindus
-      POSTGRES_PASSWORD: megaindus
+      POSTGRES_DB: hacint_test
+      POSTGRES_USER: hacint
+      POSTGRES_PASSWORD: hacint
       POSTGRES_HOST: localhost
       POSTGRES_PORT: 5432
       REDIS_URL: redis://localhost:6379/0
