@@ -39,6 +39,13 @@ services:
       CORS_ALLOWED_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
       CSRF_TRUSTED_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
       JIMIDE_DXF_FOLDER: /app/dxf_output
+      EMAIL_HOST: smtp.mxhichina.com
+      EMAIL_PORT: "465"
+      EMAIL_USE_SSL: "True"
+      EMAIL_USE_TLS: "False"
+      EMAIL_HOST_USER: adnane.meziati@hacint.com.cn
+      EMAIL_HOST_PASSWORD: VwPmyCof3oDUWOGi
+      DEFAULT_FROM_EMAIL: "Hacint ERP <adnane.meziati@hacint.com.cn>"
     ports:
       - "8000:8000"
     depends_on:
@@ -50,7 +57,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./frontend:/app
-      - /app/node_modules
+      - frontend_node_modules:/app/node_modules
     environment:
       VITE_BACKEND_URL: http://backend:8000
     ports:
@@ -61,3 +68,4 @@ services:
 volumes:
   pgdata:
   media_files:
+  frontend_node_modules:

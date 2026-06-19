@@ -44,6 +44,35 @@ export async function login(username, password) {
   return data
 }
 
+export async function verifyOtp(userId, code) {
+  const { data } = await api.post('/auth/verify-otp/', { user_id: userId, code })
+  return data
+}
+
+export async function resendOtp(userId, purpose = 'login') {
+  const { data } = await api.post('/auth/resend-otp/', { user_id: userId, purpose })
+  return data
+}
+
+export async function changePassword(newPassword) {
+  const { data } = await api.post('/auth/change-password/', { new_password: newPassword })
+  return data
+}
+
+export async function forgotPassword(username) {
+  const { data } = await api.post('/auth/forgot-password/', { username })
+  return data
+}
+
+export async function resetPassword(userId, code, newPassword) {
+  const { data } = await api.post('/auth/reset-password/', {
+    user_id: userId,
+    code,
+    new_password: newPassword,
+  })
+  return data
+}
+
 export async function logout() {
   await api.post('/auth/logout/')
 }

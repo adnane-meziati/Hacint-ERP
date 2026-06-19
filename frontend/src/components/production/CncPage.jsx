@@ -1,4 +1,5 @@
 ﻿import { useCallback, useEffect, useRef, useState } from 'react'
+import { Button, Dialog, NativeSelect, Spinner } from '@chakra-ui/react'
 import { getMachines, getProjects, getSamples, resetCnc, sendToMachine, setCncRework, setCncStatus } from '../../api/client'
 
 const PLACEHOLDER = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"%3E%3Crect width="40" height="40" fill="%23e2e8f0"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="14" fill="%2394a3b8"%3E📷%3C/text%3E%3C/svg%3E'
@@ -29,30 +30,39 @@ function formatTime(minutes) {
 function PauseModal({ sample, onConfirm, onCancel }) {
   const [reason, setReason] = useState('')
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
-      <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-lg w-full sm:max-w-sm p-6">
-        <h3 className="font-semibold text-slate-800 text-lg mb-1">Justification de la pause</h3>
-        <p className="text-sm text-slate-500 mb-4">
-          <span className="font-medium text-slate-700">{sample.apn}</span>
-          <span className="mx-1.5 text-slate-300">—</span>{sample.project}
-        </p>
-        <select value={reason} onChange={(e) => setReason(e.target.value)} className="input">
-          <option value="">Sélectionner une raison…</option>
-          {PAUSE_REASONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-        </select>
-        <div className="flex justify-end gap-3 mt-6">
-          <button onClick={onCancel} className="btn-secondary">Annuler</button>
-          <button onClick={() => onConfirm(reason)} disabled={!reason} className="btn-primary">⏸ Mettre en pause</button>
-        </div>
-      </div>
-    </div>
+    <Dialog.Root open onOpenChange={({ open }) => !open && onCancel()} placement="center" size="sm">
+      <Dialog.Backdrop />
+      <Dialog.Positioner>
+        <Dialog.Content mx="4">
+          <Dialog.Header pb="1">
+            <Dialog.Title>Justification de la pause</Dialog.Title>
+          </Dialog.Header>
+          <Dialog.Body spaceY="3">
+            <p className="text-sm text-slate-500">
+              <span className="font-medium text-slate-700">{sample.apn}</span>
+              <span className="mx-1.5 text-slate-300">—</span>{sample.project}
+            </p>
+            <NativeSelect.Root>
+              <NativeSelect.Field value={reason} onChange={(e) => setReason(e.target.value)}>
+                <option value="">Sélectionner une raison…</option>
+                {PAUSE_REASONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+              </NativeSelect.Field>
+            </NativeSelect.Root>
+          </Dialog.Body>
+          <Dialog.Footer>
+            <Button variant="outline" onClick={onCancel}>Annuler</Button>
+            <Button colorPalette="blue" disabled={!reason} onClick={() => onConfirm(reason)}>⏸ Mettre en pause</Button>
+          </Dialog.Footer>
+        </Dialog.Content>
+      </Dialog.Positioner>
+    </Dialog.Root>
   )
 }
 
 function SendToMachineModal({ sample, machines, onClose }) {
   const [selectedMachine, setSelectedMachine] = useState('')
   const [sending, setSending] = useState(false)
-  const [result, setResult] = useState(null) // { success, message } or { error }
+  const [result, setResult] = useState(null)
 
   async function handleSend() {
     if (!selectedMachine) return
@@ -69,82 +79,79 @@ function SendToMachineModal({ sample, machines, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
-      <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-lg w-full sm:max-w-md p-6">
-        <h3 className="font-semibold text-slate-800 text-lg mb-1">Envoyer vers machine</h3>
-        <p className="text-sm text-slate-500 mb-2">
-          <span className="font-medium text-slate-700">{sample.apn}</span>
-          <span className="mx-1.5 text-slate-300">—</span>
-          {sample.project}
-        </p>
-        {sample.gcodeFileName && (
-          <div className="flex items-center gap-2 mb-4 text-xs bg-green-50 border border-green-200 rounded-lg p-2.5">
-            <span className="px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-bold text-[10px]">NC</span>
-            <span className="text-green-800 truncate font-medium">{sample.gcodeFileName}</span>
-          </div>
-        )}
-
-        <div className="space-y-2 mb-5">
-          {machines.map((m) => (
-            <label key={m.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${selectedMachine === m.id ? 'border-yellow-400 bg-yellow-50' : 'border-slate-200 hover:bg-slate-50'}`}>
-              <input
-                type="radio"
-                name="machine"
-                value={m.id}
-                checked={selectedMachine === m.id}
-                onChange={() => setSelectedMachine(m.id)}
-                className="accent-yellow-500"
-              />
-              <div className="flex-1">
-                <div className="font-semibold text-slate-800 text-sm">{m.name}</div>
-                <div className="text-xs text-slate-500">{m.type === 'fanuc' ? 'FANUC' : 'Mitsubishi M80A'} — {m.ip}</div>
+    <Dialog.Root open onOpenChange={({ open }) => !open && onClose()} placement="center" size="md">
+      <Dialog.Backdrop />
+      <Dialog.Positioner>
+        <Dialog.Content mx="4">
+          <Dialog.Header pb="1">
+            <Dialog.Title>Envoyer vers machine</Dialog.Title>
+          </Dialog.Header>
+          <Dialog.Body spaceY="3">
+            <p className="text-sm text-slate-500">
+              <span className="font-medium text-slate-700">{sample.apn}</span>
+              <span className="mx-1.5 text-slate-300">—</span>
+              {sample.project}
+            </p>
+            {sample.gcodeFileName && (
+              <div className="flex items-center gap-2 text-xs bg-green-50 border border-green-200 rounded-lg p-2.5">
+                <span className="px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-bold text-[10px]">NC</span>
+                <span className="text-green-800 truncate font-medium">{sample.gcodeFileName}</span>
               </div>
-            </label>
-          ))}
-        </div>
-
-        {result && (
-          <div className={`text-sm rounded-lg p-3 mb-4 ${result.success ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-700'}`}>
-            {result.success ? result.message : result.error}
-          </div>
-        )}
-
-        <div className="flex justify-end gap-3">
-          <button onClick={onClose} className="btn-secondary">{result?.success ? 'Fermer' : 'Annuler'}</button>
-          {!result?.success && (
-            <button
-              onClick={handleSend}
-              disabled={sending || !selectedMachine}
-              className="btn-primary disabled:opacity-50"
-            >
-              {sending ? (
-                <span className="inline-flex items-center gap-2">
-                  <span className="inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Envoi…
-                </span>
-              ) : '📡 Envoyer'}
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
+            )}
+            <div className="space-y-2">
+              {machines.map((m) => (
+                <label key={m.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${selectedMachine === m.id ? 'border-yellow-400 bg-yellow-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                  <input type="radio" name="machine" value={m.id} checked={selectedMachine === m.id}
+                    onChange={() => setSelectedMachine(m.id)} className="accent-yellow-500" />
+                  <div className="flex-1">
+                    <div className="font-semibold text-slate-800 text-sm">{m.name}</div>
+                    <div className="text-xs text-slate-500">{m.type === 'fanuc' ? 'FANUC' : 'Mitsubishi M80A'} — {m.ip}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
+            {result && (
+              <div className={`text-sm rounded-lg p-3 ${result.success ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-700'}`}>
+                {result.success ? result.message : result.error}
+              </div>
+            )}
+          </Dialog.Body>
+          <Dialog.Footer>
+            <Button variant="outline" onClick={onClose}>{result?.success ? 'Fermer' : 'Annuler'}</Button>
+            {!result?.success && (
+              <Button colorPalette="yellow" onClick={handleSend} disabled={sending || !selectedMachine}
+                loading={sending} loadingText="Envoi…">
+                📡 Envoyer
+              </Button>
+            )}
+          </Dialog.Footer>
+        </Dialog.Content>
+      </Dialog.Positioner>
+    </Dialog.Root>
   )
 }
 
 function ReworkModal({ sample, onConfirm, onCancel }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
-      <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-lg w-full sm:max-w-sm p-6">
-        <h3 className="font-semibold text-slate-800 text-lg mb-1">Retourner en rework</h3>
-        <p className="text-sm text-slate-500 mb-5">
-          Renvoyer <span className="font-medium text-slate-700">{sample.apn}</span> au programmateur pour correction ? Le chrono sera remis à zéro.
-        </p>
-        <div className="flex justify-end gap-3">
-          <button onClick={onCancel} className="btn-secondary">Annuler</button>
-          <button onClick={onConfirm} className="btn-danger">↺ Confirmer rework</button>
-        </div>
-      </div>
-    </div>
+    <Dialog.Root open onOpenChange={({ open }) => !open && onCancel()} placement="center" size="sm">
+      <Dialog.Backdrop />
+      <Dialog.Positioner>
+        <Dialog.Content mx="4">
+          <Dialog.Header pb="1">
+            <Dialog.Title>Retourner en rework</Dialog.Title>
+          </Dialog.Header>
+          <Dialog.Body>
+            <p className="text-sm text-slate-500">
+              Renvoyer <span className="font-medium text-slate-700">{sample.apn}</span> au programmateur pour correction ? Le chrono sera remis à zéro.
+            </p>
+          </Dialog.Body>
+          <Dialog.Footer>
+            <Button variant="outline" onClick={onCancel}>Annuler</Button>
+            <Button colorPalette="red" onClick={onConfirm}>↺ Confirmer rework</Button>
+          </Dialog.Footer>
+        </Dialog.Content>
+      </Dialog.Positioner>
+    </Dialog.Root>
   )
 }
 
@@ -295,8 +302,8 @@ export default function CncPage({ currentUser }) {
         </div>
 
         {loading ? (
-          <div className="text-center py-16 text-slate-400">
-            <div className="inline-block w-6 h-6 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mb-3" />
+          <div className="flex flex-col items-center gap-3 py-16 text-slate-400">
+            <Spinner color="yellow.500" />
             <p className="text-sm">Chargement…</p>
           </div>
         ) : samples.length === 0 ? (
@@ -454,7 +461,7 @@ function CncCard({ sample: s, now, busy, currentUserId, onStatusChange, onPause,
 
       <div className="mt-3">
         {busy ? (
-          <div className="flex justify-center py-2"><div className="w-5 h-5 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" /></div>
+          <div className="flex justify-center py-2"><Spinner color="yellow.500" size="sm" /></div>
         ) : s.is_cnc_rework ? (
           <div className="space-y-2">
             <p className="text-xs text-red-500 font-medium text-center bg-red-50 rounded-lg py-2">En attente programmateur…</p>
@@ -549,7 +556,7 @@ function CncRow({ sample: s, now, busy, currentUserId, onStatusChange, onPause, 
       </td>
       <td className="px-4 py-3">
         {busy ? (
-          <div className="inline-block w-4 h-4 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />
+          <Spinner color="yellow.500" size="xs" />
         ) : s.is_cnc_rework ? (
           <div className="flex flex-wrap gap-1">
             <span className="text-xs text-red-500 font-medium">En attente programmateur…</span>

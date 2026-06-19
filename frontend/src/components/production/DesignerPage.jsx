@@ -1,4 +1,5 @@
 ﻿import { useCallback, useEffect, useRef, useState } from 'react'
+import { Button, Dialog, NativeSelect, Spinner } from '@chakra-ui/react'
 import {
   deleteDesignFile, deleteDesignPdf, deleteBomPdf,
   getProjects, getSamples, markDone, setDesignerStatus, uploadDesign, uploadBomFile,
@@ -37,36 +38,35 @@ function formatTime(minutes) {
 function PauseModal({ sample, onConfirm, onCancel }) {
   const [reason, setReason] = useState('')
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
-      <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-lg w-full sm:max-w-sm p-6">
-        <h3 className="font-semibold text-slate-800 text-lg mb-1">Justification de la pause</h3>
-        <p className="text-sm text-slate-500 mb-4">
-          <span className="font-medium text-slate-700">{sample.apn}</span>
-          <span className="mx-1.5 text-slate-300">—</span>
-          {sample.project}
-        </p>
-        <select
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          className="input"
-        >
-          <option value="">Sélectionner une raison…</option>
-          {PAUSE_REASONS.map((r) => (
-            <option key={r.value} value={r.value}>{r.label}</option>
-          ))}
-        </select>
-        <div className="flex justify-end gap-3 mt-6">
-          <button onClick={onCancel} className="btn-secondary">Annuler</button>
-          <button
-            onClick={() => onConfirm(reason)}
-            disabled={!reason}
-            className="btn-primary"
-          >
-            ⏸ Mettre en pause
-          </button>
-        </div>
-      </div>
-    </div>
+    <Dialog.Root open onOpenChange={({ open }) => !open && onCancel()} placement="center" size="sm">
+      <Dialog.Backdrop />
+      <Dialog.Positioner>
+        <Dialog.Content mx="4">
+          <Dialog.Header pb="1">
+            <Dialog.Title>Justification de la pause</Dialog.Title>
+          </Dialog.Header>
+          <Dialog.Body spaceY="3">
+            <p className="text-sm text-slate-500">
+              <span className="font-medium text-slate-700">{sample.apn}</span>
+              <span className="mx-1.5 text-slate-300">—</span>
+              {sample.project}
+            </p>
+            <NativeSelect.Root>
+              <NativeSelect.Field value={reason} onChange={(e) => setReason(e.target.value)}>
+                <option value="">Sélectionner une raison…</option>
+                {PAUSE_REASONS.map((r) => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
+              </NativeSelect.Field>
+            </NativeSelect.Root>
+          </Dialog.Body>
+          <Dialog.Footer>
+            <Button variant="outline" onClick={onCancel}>Annuler</Button>
+            <Button colorPalette="blue" disabled={!reason} onClick={() => onConfirm(reason)}>⏸ Mettre en pause</Button>
+          </Dialog.Footer>
+        </Dialog.Content>
+      </Dialog.Positioner>
+    </Dialog.Root>
   )
 }
 
@@ -424,36 +424,40 @@ function UploadPage({ sample: initialSample, onSuccess, onBack }) {
 function PendingDetailModal({ sample: s, onClose }) {
   if (!s) return null
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
-      <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-lg w-full sm:max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <h3 className="font-semibold text-slate-800 text-lg leading-tight">{s.apn}</h3>
-            {s.serial_number != null && <span className="text-xs text-slate-400 font-mono">#{s.serial_number}</span>}
-          </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl leading-none">✕</button>
-        </div>
-        {(s.thumbnailUrl) && (
-          <img src={s.thumbnailUrl} alt={s.apn}
-            className="w-full max-h-64 object-contain rounded-lg bg-slate-100 mb-4"
-            onError={(e) => { e.target.style.display = 'none' }} />
-        )}
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-          <dt className="text-slate-500">Projet</dt>       <dd className="text-slate-800 font-medium">{s.project || '—'}</dd>
-          <dt className="text-slate-500">Placement</dt>    <dd><span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-xs">{s.placement}</span></dd>
-          <dt className="text-slate-500">Quantité</dt>     <dd className="font-medium">{s.quantity}</dd>
-          <dt className="text-slate-500">Client</dt>       <dd>{s.clientDisplay || s.client || '—'}</dd>
-          <dt className="text-slate-500">Réception</dt>    <dd>{s.received_date ? new Date(s.received_date + 'T00:00:00').toLocaleDateString('fr-FR') : '—'}</dd>
-          {s.description && <>
-            <dt className="text-slate-500 col-span-2">Description</dt>
-            <dd className="col-span-2 text-slate-700 bg-slate-50 rounded p-2 text-xs">{s.description}</dd>
-          </>}
-        </dl>
-        <div className="flex justify-end mt-6">
-          <button onClick={onClose} className="btn-secondary">Fermer</button>
-        </div>
-      </div>
-    </div>
+    <Dialog.Root open onOpenChange={({ open }) => !open && onClose()} placement="center" size="lg">
+      <Dialog.Backdrop />
+      <Dialog.Positioner>
+        <Dialog.Content mx="4" maxH="90vh" overflow="hidden" display="flex" flexDirection="column">
+          <Dialog.Header>
+            <div>
+              <Dialog.Title>{s.apn}</Dialog.Title>
+              {s.serial_number != null && <span className="text-xs text-slate-400 font-mono">#{s.serial_number}</span>}
+            </div>
+          </Dialog.Header>
+          <Dialog.Body overflowY="auto" spaceY="4">
+            {s.thumbnailUrl && (
+              <img src={s.thumbnailUrl} alt={s.apn}
+                className="w-full max-h-64 object-contain rounded-lg bg-slate-100"
+                onError={(e) => { e.target.style.display = 'none' }} />
+            )}
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+              <dt className="text-slate-500">Projet</dt>       <dd className="text-slate-800 font-medium">{s.project || '—'}</dd>
+              <dt className="text-slate-500">Placement</dt>    <dd><span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-xs">{s.placement}</span></dd>
+              <dt className="text-slate-500">Quantité</dt>     <dd className="font-medium">{s.quantity}</dd>
+              <dt className="text-slate-500">Client</dt>       <dd>{s.clientDisplay || s.client || '—'}</dd>
+              <dt className="text-slate-500">Réception</dt>    <dd>{s.received_date ? new Date(s.received_date + 'T00:00:00').toLocaleDateString('fr-FR') : '—'}</dd>
+              {s.description && <>
+                <dt className="text-slate-500 col-span-2">Description</dt>
+                <dd className="col-span-2 text-slate-700 bg-slate-50 rounded p-2 text-xs">{s.description}</dd>
+              </>}
+            </dl>
+          </Dialog.Body>
+          <Dialog.Footer>
+            <Button variant="outline" onClick={onClose}>Fermer</Button>
+          </Dialog.Footer>
+        </Dialog.Content>
+      </Dialog.Positioner>
+    </Dialog.Root>
   )
 }
 
@@ -665,8 +669,8 @@ export default function DesignerPage({ currentUser }) {
             </div>
 
             {loading ? (
-              <div className="text-center py-16 text-slate-400">
-                <div className="inline-block w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mb-3" />
+              <div className="flex flex-col items-center gap-3 py-16 text-slate-400">
+                <Spinner color="blue.600" />
                 <p className="text-sm">Chargement…</p>
               </div>
             ) : samples.length === 0 ? (
@@ -750,8 +754,8 @@ export default function DesignerPage({ currentUser }) {
             <p className="text-sm text-slate-500">{pendingSamples.length} échantillon{pendingSamples.length !== 1 ? 's' : ''} en attente d'approbation</p>
           </div>
           {loadingPending ? (
-            <div className="text-center py-16 text-slate-400">
-              <div className="inline-block w-6 h-6 border-2 border-slate-400 border-t-transparent rounded-full animate-spin mb-3" />
+            <div className="flex flex-col items-center gap-3 py-16 text-slate-400">
+              <Spinner color="gray.400" />
               <p className="text-sm">Chargement…</p>
             </div>
           ) : pendingSamples.length === 0 ? (
@@ -904,7 +908,7 @@ function DesignerCard({ sample: s, now, busy, currentUserId, onStatusChange, onP
       <div className="mt-3">
         {busy ? (
           <div className="flex justify-center py-2">
-            <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <Spinner color="blue.500" size="sm" />
           </div>
         ) : lockedByOther ? (
           <div className="text-xs text-slate-400 bg-slate-50 rounded-lg px-3 py-2.5 text-center">
@@ -1036,7 +1040,7 @@ function DesignerRow({ sample: s, now, busy, currentUserId, onStatusChange, onPa
       </td>
       <td className="px-4 py-3">
         {busy ? (
-          <div className="inline-block w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <Spinner color="blue.500" size="xs" />
         ) : lockedByOther ? (
           <span className="inline-flex items-center gap-1 text-xs text-slate-400">
             🔒 {s.designerLockedBy}

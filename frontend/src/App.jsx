@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import hacintLogo from './assets/hacint-logo.png'
 import {
-  exportCsvUrl, fetchCsrf, getMe, getProjects, getSamples, login, logout,
+  exportCsvUrl, fetchCsrf, getMe, getProjects, getSamples,
+  login, logout, verifyOtp, resendOtp, changePassword, forgotPassword, resetPassword,
 } from './api/client'
 import AdminUsersPage from './components/production/AdminUsersPage'
 import TechnicalStudyPage from './components/production/TechnicalStudyPage'
@@ -40,7 +41,6 @@ const PROD_TABS_ADMIN = [
   { id: 'cnc',        label: 'Vue CNC' },
   { id: 'assembly',   label: 'Vue Assembly' },
   { id: 'quality',    label: 'Vue Qualité' },
-  { id: 'users',      label: '👥 Utilisateurs' },
 ]
 
 // Storage section tabs
@@ -101,13 +101,14 @@ const LOGISTICS_TABS = [
 // ─── Shared app header row (logo + section + user + logout) ──────────────────
 
 const SECTION_CHIPS = {
-  production: { label: 'Production',   cls: 'bg-blue-100 text-blue-700' },
-  storage:    { label: 'Stockage',     cls: 'bg-orange-100 text-orange-700' },
-  accounting: { label: 'Comptabilité', cls: 'bg-emerald-100 text-emerald-700' },
-  hr:         { label: 'RH',           cls: 'bg-purple-100 text-purple-700' },
-  logistics:  { label: 'Logistique',   cls: 'bg-teal-100 text-teal-700' },
-  sales:      { label: 'Ventes',       cls: 'bg-rose-100 text-rose-700' },
-  installation: { label: 'Installation', cls: 'bg-indigo-100 text-indigo-700' },
+  production:   { label: 'Production',    cls: 'bg-blue-100 text-blue-700' },
+  storage:      { label: 'Stockage',      cls: 'bg-orange-100 text-orange-700' },
+  accounting:   { label: 'Comptabilité',  cls: 'bg-emerald-100 text-emerald-700' },
+  hr:           { label: 'RH',            cls: 'bg-purple-100 text-purple-700' },
+  logistics:    { label: 'Logistique',    cls: 'bg-teal-100 text-teal-700' },
+  sales:        { label: 'Ventes',        cls: 'bg-rose-100 text-rose-700' },
+  installation: { label: 'Installation',  cls: 'bg-indigo-100 text-indigo-700' },
+  users:        { label: 'Utilisateurs',  cls: 'bg-slate-100 text-slate-700' },
 }
 
 function AppHeader({ user, onLogout, section }) {
@@ -271,28 +272,9 @@ function LogisticsTabBar({ logisticsTab, onTabChange }) {
   )
 }
 
-// ─── Login page ───────────────────────────────────────────────────────────────
+// ─── Auth pages ───────────────────────────────────────────────────────────────
 
-function LoginPage({ onLogin }) {
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState(null)
-  const [loading, setLoading] = useState(false)
-
-  async function handleSubmit(e) {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
-    try {
-      const user = await login(username, password)
-      onLogin(user)
-    } catch {
-      setError('Identifiants incorrects. Veuillez réessayer.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
+function AuthCard({ children }) {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 py-8">
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 w-full max-w-sm p-6 sm:p-8">
@@ -300,16 +282,194 @@ function LoginPage({ onLogin }) {
           <img src={hacintLogo} alt="Hacint" className="h-12 w-auto mx-auto mb-6" />
           <p className="text-sm text-slate-500">Gestion Industrielle</p>
         </div>
+        {children}
+      </div>
+    </div>
+  )
+}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+function LoginPage({ onLogin }) {
+  // stage: 'login' | 'otp' | 'forgot' | 'forgot_otp' | 'reset_password'
+  const [stage, setStage] = useState('login')
+  const [error, setError] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(0)
+
+  // Login stage
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+
+  // OTP stage (login)
+  const [pendingUserId, setPendingUserId] = useState(null)
+  const [emailHint, setEmailHint] = useState('')
+  const [otpCode, setOtpCode] = useState('')
+
+  // Forgot password stage
+  const [forgotUsername, setForgotUsername] = useState('')
+  const [resetUserId, setResetUserId] = useState(null)
+  const [resetEmailHint, setResetEmailHint] = useState('')
+  const [resetCode, setResetCode] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+
+  function startCooldown() {
+    setResendCooldown(60)
+    const t = setInterval(() => {
+      setResendCooldown(prev => {
+        if (prev <= 1) { clearInterval(t); return 0 }
+        return prev - 1
+      })
+    }, 1000)
+  }
+
+  // ── Stage: login ─────────────────────────────────────────────────────────
+  async function handleLogin(e) {
+    e.preventDefault()
+    setLoading(true); setError(null)
+    try {
+      const res = await login(username, password)
+      if (res.requires_otp) {
+        setPendingUserId(res.user_id)
+        setEmailHint(res.email_hint)
+        setOtpCode('')
+        setStage('otp')
+        startCooldown()
+      } else {
+        onLogin(res)
+      }
+    } catch (err) {
+      const msg = err?.response?.data?.error
+      if (msg) {
+        setError(msg)
+      } else if (err?.response?.status === 400) {
+        setError('Identifiants incorrects. Veuillez réessayer.')
+      } else {
+        setError('Erreur serveur. Veuillez réessayer ou contacter l\'administrateur.')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ── Stage: OTP (login) ───────────────────────────────────────────────────
+  async function handleVerifyOtp(e) {
+    e.preventDefault()
+    setLoading(true); setError(null)
+    try {
+      const user = await verifyOtp(pendingUserId, otpCode)
+      onLogin(user)
+    } catch (err) {
+      setError(err?.response?.data?.error ?? 'Code invalide ou expiré.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleResendOtp() {
+    if (resendCooldown > 0) return
+    setError(null)
+    try {
+      await resendOtp(pendingUserId, 'login')
+      startCooldown()
+    } catch (err) {
+      setError(err?.response?.data?.error ?? 'Erreur lors du renvoi.')
+    }
+  }
+
+  // ── Stage: forgot password ───────────────────────────────────────────────
+  async function handleForgot(e) {
+    e.preventDefault()
+    setLoading(true); setError(null)
+    try {
+      const res = await forgotPassword(forgotUsername)
+      if (res.user_id) {
+        setResetUserId(res.user_id)
+        setResetEmailHint(res.email_hint)
+        setResetCode('')
+        setStage('forgot_otp')
+        startCooldown()
+      } else {
+        // User not found — still show OTP screen (don't reveal)
+        setError("Si ce compte existe, un code a été envoyé à l'adresse email associée.")
+      }
+    } catch (err) {
+      setError(err?.response?.data?.error ?? 'Une erreur est survenue.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleResendReset() {
+    if (resendCooldown > 0) return
+    setError(null)
+    try {
+      await resendOtp(resetUserId, 'reset')
+      startCooldown()
+    } catch (err) {
+      setError(err?.response?.data?.error ?? 'Erreur lors du renvoi.')
+    }
+  }
+
+  function handleVerifyResetCode(e) {
+    e.preventDefault()
+    if (!resetCode.trim()) { setError('Veuillez entrer le code.'); return }
+    setError(null)
+    setStage('reset_password')
+  }
+
+  // ── Stage: reset password ────────────────────────────────────────────────
+  async function handleResetPassword(e) {
+    e.preventDefault()
+    if (newPassword !== confirmPassword) {
+      setError('Les mots de passe ne correspondent pas.')
+      return
+    }
+    if (newPassword.length < 6) {
+      setError('Le mot de passe doit contenir au moins 6 caractères.')
+      return
+    }
+    setLoading(true); setError(null)
+    try {
+      await resetPassword(resetUserId, resetCode, newPassword)
+      setStage('login')
+      setError(null)
+      // show success message via error slot (green)
+      setTimeout(() => setError('__success__Mot de passe réinitialisé. Vous pouvez vous connecter.'), 0)
+    } catch (err) {
+      setError(err?.response?.data?.error ?? 'Code invalide ou expiré.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const isSuccess = error?.startsWith('__success__')
+  const displayError = isSuccess ? error.slice(11) : error
+
+  function ErrorMsg() {
+    if (!error) return null
+    return (
+      <p className={`text-sm rounded-lg p-2.5 border ${
+        isSuccess
+          ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+          : 'text-red-600 bg-red-50 border-red-200'
+      }`}>{displayError}</p>
+    )
+  }
+
+  // ── Render stages ────────────────────────────────────────────────────────
+
+  if (stage === 'login') {
+    return (
+      <AuthCard>
+        <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="label">Nom d'utilisateur</label>
+            <label className="label">Email / Nom d'utilisateur</label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="input"
-              placeholder="admin"
+              placeholder="utilisateur@hacint.com"
               autoFocus
             />
           </div>
@@ -322,11 +482,271 @@ function LoginPage({ onLogin }) {
               className="input"
             />
           </div>
+          <ErrorMsg />
+          <button type="submit" className="btn-primary w-full justify-center py-3" disabled={loading}>
+            {loading ? 'Connexion…' : 'Se connecter'}
+          </button>
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={() => { setStage('forgot'); setError(null) }}
+              className="text-sm text-blue-600 hover:underline"
+            >
+              Mot de passe oublié ?
+            </button>
+          </div>
+        </form>
+      </AuthCard>
+    )
+  }
+
+  if (stage === 'otp') {
+    return (
+      <AuthCard>
+        <div className="mb-6 text-center">
+          <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3">
+            <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h2 className="font-semibold text-slate-800 mb-1">Code de vérification</h2>
+          <p className="text-sm text-slate-500">
+            Un code à 6 chiffres a été envoyé à<br />
+            <span className="font-medium text-slate-700">{emailHint}</span>
+          </p>
+        </div>
+        <form onSubmit={handleVerifyOtp} className="space-y-4">
+          <div>
+            <label className="label">Code de vérification</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+              className="input text-center text-2xl tracking-[0.5em] font-mono"
+              placeholder="000000"
+              autoFocus
+            />
+          </div>
+          <ErrorMsg />
+          <button type="submit" className="btn-primary w-full justify-center py-3" disabled={loading || otpCode.length < 6}>
+            {loading ? 'Vérification…' : 'Vérifier'}
+          </button>
+          <div className="flex items-center justify-between text-sm">
+            <button type="button" onClick={() => { setStage('login'); setError(null) }} className="text-slate-500 hover:text-slate-700">
+              ← Retour
+            </button>
+            <button
+              type="button"
+              onClick={handleResendOtp}
+              disabled={resendCooldown > 0}
+              className={`text-blue-600 hover:underline disabled:text-slate-400 disabled:no-underline`}
+            >
+              {resendCooldown > 0 ? `Renvoyer (${resendCooldown}s)` : 'Renvoyer le code'}
+            </button>
+          </div>
+        </form>
+      </AuthCard>
+    )
+  }
+
+  if (stage === 'forgot') {
+    return (
+      <AuthCard>
+        <div className="mb-6">
+          <h2 className="font-semibold text-slate-800 mb-1">Mot de passe oublié</h2>
+          <p className="text-sm text-slate-500">Entrez votre nom d'utilisateur. Un code de réinitialisation sera envoyé à votre email.</p>
+        </div>
+        <form onSubmit={handleForgot} className="space-y-4">
+          <div>
+            <label className="label">Email / Nom d'utilisateur</label>
+            <input
+              type="text"
+              value={forgotUsername}
+              onChange={(e) => setForgotUsername(e.target.value)}
+              className="input"
+              placeholder="utilisateur@hacint.com"
+              autoFocus
+            />
+          </div>
+          <ErrorMsg />
+          <button type="submit" className="btn-primary w-full justify-center py-3" disabled={loading}>
+            {loading ? 'Envoi…' : 'Envoyer le code'}
+          </button>
+          <div className="text-center">
+            <button type="button" onClick={() => { setStage('login'); setError(null) }} className="text-sm text-slate-500 hover:text-slate-700">
+              ← Retour à la connexion
+            </button>
+          </div>
+        </form>
+      </AuthCard>
+    )
+  }
+
+  if (stage === 'forgot_otp') {
+    return (
+      <AuthCard>
+        <div className="mb-6 text-center">
+          <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center mx-auto mb-3">
+            <svg className="w-6 h-6 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
+          </div>
+          <h2 className="font-semibold text-slate-800 mb-1">Code de réinitialisation</h2>
+          <p className="text-sm text-slate-500">
+            Code envoyé à<br />
+            <span className="font-medium text-slate-700">{resetEmailHint}</span>
+          </p>
+        </div>
+        <form onSubmit={handleVerifyResetCode} className="space-y-4">
+          <div>
+            <label className="label">Code à 6 chiffres</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              value={resetCode}
+              onChange={(e) => setResetCode(e.target.value.replace(/\D/g, ''))}
+              className="input text-center text-2xl tracking-[0.5em] font-mono"
+              placeholder="000000"
+              autoFocus
+            />
+          </div>
+          <ErrorMsg />
+          <button type="submit" className="btn-primary w-full justify-center py-3" disabled={resetCode.length < 6}>
+            Confirmer
+          </button>
+          <div className="flex items-center justify-between text-sm">
+            <button type="button" onClick={() => { setStage('forgot'); setError(null) }} className="text-slate-500 hover:text-slate-700">
+              ← Retour
+            </button>
+            <button
+              type="button"
+              onClick={handleResendReset}
+              disabled={resendCooldown > 0}
+              className="text-blue-600 hover:underline disabled:text-slate-400 disabled:no-underline"
+            >
+              {resendCooldown > 0 ? `Renvoyer (${resendCooldown}s)` : 'Renvoyer le code'}
+            </button>
+          </div>
+        </form>
+      </AuthCard>
+    )
+  }
+
+  if (stage === 'reset_password') {
+    return (
+      <AuthCard>
+        <div className="mb-6">
+          <h2 className="font-semibold text-slate-800 mb-1">Nouveau mot de passe</h2>
+          <p className="text-sm text-slate-500">Choisissez un nouveau mot de passe sécurisé.</p>
+        </div>
+        <form onSubmit={handleResetPassword} className="space-y-4">
+          <div>
+            <label className="label">Nouveau mot de passe</label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="input"
+              placeholder="Au moins 6 caractères"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="label">Confirmer le mot de passe</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="input"
+              placeholder="Répétez le mot de passe"
+            />
+          </div>
+          <ErrorMsg />
+          <button type="submit" className="btn-primary w-full justify-center py-3" disabled={loading}>
+            {loading ? 'Enregistrement…' : 'Enregistrer le mot de passe'}
+          </button>
+        </form>
+      </AuthCard>
+    )
+  }
+
+  return null
+}
+
+// ─── Forced password change (first login) ─────────────────────────────────────
+
+function ChangePasswordPage({ user, onComplete }) {
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [error, setError] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (newPassword !== confirmPassword) {
+      setError('Les mots de passe ne correspondent pas.')
+      return
+    }
+    if (newPassword.length < 6) {
+      setError('Le mot de passe doit contenir au moins 6 caractères.')
+      return
+    }
+    setLoading(true); setError(null)
+    try {
+      const updated = await changePassword(newPassword)
+      onComplete(updated)
+    } catch (err) {
+      setError(err?.response?.data?.error ?? 'Une erreur est survenue.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const name = user?.firstName || user?.username || ''
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 py-8">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 w-full max-w-sm p-6 sm:p-8">
+        <div className="text-center mb-8">
+          <img src={hacintLogo} alt="Hacint" className="h-12 w-auto mx-auto mb-4" />
+          <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3">
+            <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <h2 className="font-semibold text-slate-800 mb-1">Bienvenue{name ? `, ${name}` : ''} !</h2>
+          <p className="text-sm text-slate-500">Créez votre mot de passe personnel pour sécuriser votre compte.</p>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="label">Nouveau mot de passe</label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="input"
+              placeholder="Au moins 6 caractères"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="label">Confirmer le mot de passe</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="input"
+              placeholder="Répétez le mot de passe"
+            />
+          </div>
           {error && (
             <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2.5">{error}</p>
           )}
           <button type="submit" className="btn-primary w-full justify-center py-3" disabled={loading}>
-            {loading ? 'Connexion…' : 'Se connecter'}
+            {loading ? 'Enregistrement…' : 'Créer mon mot de passe'}
           </button>
         </form>
       </div>
@@ -401,7 +821,6 @@ export default function App() {
       { id: 'cnc',         roles: ['admin', 'cnc'] },
       { id: 'assembly',    roles: ['admin', 'assembly'] },
       { id: 'quality',     roles: ['admin', 'quality'] },
-      { id: 'users',       roles: ['admin'] },
     ]
     return tabs.filter(t => t.roles.includes(role)).map(t => t.id)
   }
@@ -529,6 +948,15 @@ export default function App() {
             changePage(landingPage(u.role) || 'dashboard')
           }
         }}
+      />
+    )
+  }
+
+  if (user.must_change_password) {
+    return (
+      <ChangePasswordPage
+        user={user}
+        onComplete={(updated) => setUser(updated)}
       />
     )
   }
@@ -742,6 +1170,9 @@ export default function App() {
             )}
             {section === 'installation' && (
               <InstallationPage installationTab={installationTab} onTabChange={changeInstallationTab} currentUser={user} />
+            )}
+            {section === 'users' && (
+              <AdminUsersPage currentUser={user} />
             )}
           </main>
         </div>

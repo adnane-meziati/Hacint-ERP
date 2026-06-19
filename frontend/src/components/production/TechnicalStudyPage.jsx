@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Button, Dialog, Spinner } from '@chakra-ui/react'
 import {
   approveProjectApn, approveValidation, createProject, createProjectSample,
   deleteProjectSample, deleteMatrixEntry, createMatrixEntry,
@@ -757,224 +758,221 @@ function ImportExcelModal({ onClose, onImported, initialTab = 'excel' }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[92vh]">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-800">Importer des données</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
-        </div>
+    <Dialog.Root open onOpenChange={({ open }) => !open && onClose()} placement="center" size="xl">
+      <Dialog.Backdrop />
+      <Dialog.Positioner>
+        <Dialog.Content mx="4" maxH="92vh" display="flex" flexDirection="column">
+          <Dialog.Header borderBottomWidth="1px" borderColor="gray.100">
+            <Dialog.Title>Importer des données</Dialog.Title>
+          </Dialog.Header>
 
-        <div className="flex gap-1 px-5 py-3 border-b border-slate-100">
-          <button className={tabBtn(tab === 'excel')} onClick={() => setTab('excel')}>Spécification Excel</button>
-          <button className={tabBtn(tab === 'matrix')} onClick={() => setTab('matrix')}>Matrice CSV</button>
-        </div>
+          <div className="flex gap-1 px-5 py-3 border-b border-slate-100 shrink-0">
+            <button className={tabBtn(tab === 'excel')} onClick={() => setTab('excel')}>Spécification Excel</button>
+            <button className={tabBtn(tab === 'matrix')} onClick={() => setTab('matrix')}>Matrice CSV</button>
+          </div>
 
-        <div className="p-5 overflow-y-auto flex-1 space-y-4">
+          <Dialog.Body overflowY="auto" flex="1" spaceY="4">
 
-          {/* ── Excel tab ── */}
-          {tab === 'excel' && (
-            <>
-              {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2.5">{error}</p>}
+            {/* ── Excel tab ── */}
+            {tab === 'excel' && (
+              <>
+                {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2.5">{error}</p>}
 
-              {result ? (
-                <div className="text-center py-6 space-y-3">
-                  <div className="text-emerald-600 text-4xl">✓</div>
-                  <p className="font-semibold text-slate-800">Import terminé</p>
-                  <p className="text-sm text-slate-600">
-                    <b>{result.created_samples}</b> échantillon(s) créé(s) —{' '}
-                    <b>{result.created_matrix}</b> entrée(s) de matrice —{' '}
-                    <b>{result.ignored}</b> ligne(s) ignorée(s)
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    Projet « {result.project_name} » — statut En attente
-                  </p>
-                  <button className="btn-primary mx-auto" onClick={onClose}>Fermer</button>
-                </div>
-              ) : (
-                <>
-                  {/* ── Étape 1 : fichier + paramètres ── */}
-                  <div className="grid sm:grid-cols-3 gap-3">
-                    <div className="sm:col-span-3">
-                      <label className="label">Fichier Excel (.xlsm / .xlsx)</label>
-                      <input ref={fileRef} type="file" accept=".xlsm,.xlsx" className="hidden"
-                        onChange={e => { setFile(e.target.files[0] || null); setPreview(null) }} />
-                      <button type="button" className="btn-secondary w-full justify-center"
-                        onClick={() => fileRef.current?.click()}>
-                        {file ? `📄 ${file.name}` : 'Choisir un fichier…'}
-                      </button>
-                      <p className="text-xs text-slate-400 mt-1">
-                        Feuille « Board Specification » — en-têtes ligne 11, données à partir de la ligne 13.
-                      </p>
-                    </div>
-                    <div>
-                      <label className="label">Nom du projet</label>
-                      <input className="input" value={projectName}
-                        onChange={e => { setProjectName(e.target.value); setPreview(null) }}
-                        placeholder="PRJ-2026-01" />
-                    </div>
-                    <div>
-                      <label className="label">Client</label>
-                      <select className="input" value={client} onChange={e => setClient(e.target.value)}>
-                        {CLIENT_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="label">Statut</label>
-                      <input className="input bg-slate-50 text-slate-500" value="En attente" disabled />
-                    </div>
-                    <div className="sm:col-span-3">
-                      <label className="label">Commentaire (appliqué à tous les échantillons)</label>
-                      <textarea
-                        className="input resize-none" rows={2}
-                        value={comment} onChange={e => setComment(e.target.value)}
-                        placeholder="Optionnel — s'ajoute au commentaire de chaque ligne (colonne « Description / Comments » du fichier)…"
-                      />
-                    </div>
+                {result ? (
+                  <div className="text-center py-6 space-y-3">
+                    <div className="text-emerald-600 text-4xl">✓</div>
+                    <p className="font-semibold text-slate-800">Import terminé</p>
+                    <p className="text-sm text-slate-600">
+                      <b>{result.created_samples}</b> échantillon(s) créé(s) —{' '}
+                      <b>{result.created_matrix}</b> entrée(s) de matrice —{' '}
+                      <b>{result.ignored}</b> ligne(s) ignorée(s)
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      Projet « {result.project_name} » — statut En attente
+                    </p>
+                    <Button colorPalette="blue" mx="auto" onClick={onClose}>Fermer</Button>
                   </div>
+                ) : (
+                  <>
+                    <div className="grid sm:grid-cols-3 gap-3">
+                      <div className="sm:col-span-3">
+                        <label className="label">Fichier Excel (.xlsm / .xlsx)</label>
+                        <input ref={fileRef} type="file" accept=".xlsm,.xlsx" className="hidden"
+                          onChange={e => { setFile(e.target.files[0] || null); setPreview(null) }} />
+                        <button type="button" className="btn-secondary w-full justify-center"
+                          onClick={() => fileRef.current?.click()}>
+                          {file ? `📄 ${file.name}` : 'Choisir un fichier…'}
+                        </button>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Feuille « Board Specification » — en-têtes ligne 11, données à partir de la ligne 13.
+                        </p>
+                      </div>
+                      <div>
+                        <label className="label">Nom du projet</label>
+                        <input className="input" value={projectName}
+                          onChange={e => { setProjectName(e.target.value); setPreview(null) }}
+                          placeholder="PRJ-2026-01" />
+                      </div>
+                      <div>
+                        <label className="label">Client</label>
+                        <select className="input" value={client} onChange={e => setClient(e.target.value)}>
+                          {CLIENT_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="label">Statut</label>
+                        <input className="input bg-slate-50 text-slate-500" value="En attente" disabled />
+                      </div>
+                      <div className="sm:col-span-3">
+                        <label className="label">Commentaire (appliqué à tous les échantillons)</label>
+                        <textarea className="input resize-none" rows={2}
+                          value={comment} onChange={e => setComment(e.target.value)}
+                          placeholder="Optionnel — s'ajoute au commentaire de chaque ligne (colonne « Description / Comments » du fichier)…" />
+                      </div>
+                    </div>
 
-                  {/* ── Étape 2 : aperçu ── */}
-                  {preview && (
-                    <div className="border border-slate-200 rounded-lg overflow-hidden">
-                      <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-100 text-sm">
-                        <b>{preview.total}</b> échantillon(s) seront créés
-                        {preview.ignored > 0 && (
-                          <span className="text-amber-600"> — {preview.ignored} ligne(s) ignorée(s) (APN manquants)</span>
-                        )}
-                        {preview.truncated && (
-                          <span className="text-slate-400"> — aperçu limité aux 100 premières lignes</span>
-                        )}
-                      </div>
-                      <div className="overflow-x-auto max-h-72 overflow-y-auto">
-                        <table className="w-full text-xs">
-                          <thead className="sticky top-0 bg-white">
-                            <tr className="border-b border-slate-100 text-slate-500 font-semibold text-left">
-                              <th className="px-3 py-2">Ligne</th>
-                              <th className="px-3 py-2">APN (Holder)</th>
-                              <th className="px-3 py-2">Equipment</th>
-                              <th className="px-3 py-2">Component APN</th>
-                              <th className="px-3 py-2">Customer ID</th>
-                              <th className="px-3 py-2">Kit</th>
-                              <th className="px-3 py-2">Item</th>
-                              <th className="px-3 py-2">Commentaire</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {preview.rows.map(r => (
-                              <tr key={r.row} className="border-b border-slate-50">
-                                <td className="px-3 py-1.5 text-slate-400">{r.row}</td>
-                                <td className="px-3 py-1.5 font-mono font-semibold">{r.apn}</td>
-                                <td className="px-3 py-1.5">{r.equipment || '—'}</td>
-                                <td className="px-3 py-1.5 font-mono">{r.component_apn || '—'}</td>
-                                <td className="px-3 py-1.5">{r.customer_id || '—'}</td>
-                                <td className="px-3 py-1.5">{r.kit || '—'}</td>
-                                <td className="px-3 py-1.5">{r.item || '—'}</td>
-                                <td className="px-3 py-1.5 text-slate-500 max-w-[180px] truncate" title={r.comments || ''}>
-                                  {r.comments || '—'}
-                                </td>
+                    {preview && (
+                      <div className="border border-slate-200 rounded-lg overflow-hidden">
+                        <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-100 text-sm">
+                          <b>{preview.total}</b> échantillon(s) seront créés
+                          {preview.ignored > 0 && (
+                            <span className="text-amber-600"> — {preview.ignored} ligne(s) ignorée(s) (APN manquants)</span>
+                          )}
+                          {preview.truncated && (
+                            <span className="text-slate-400"> — aperçu limité aux 100 premières lignes</span>
+                          )}
+                        </div>
+                        <div className="overflow-x-auto max-h-72 overflow-y-auto">
+                          <table className="w-full text-xs">
+                            <thead className="sticky top-0 bg-white">
+                              <tr className="border-b border-slate-100 text-slate-500 font-semibold text-left">
+                                <th className="px-3 py-2">Ligne</th>
+                                <th className="px-3 py-2">APN (Holder)</th>
+                                <th className="px-3 py-2">Equipment</th>
+                                <th className="px-3 py-2">Component APN</th>
+                                <th className="px-3 py-2">Customer ID</th>
+                                <th className="px-3 py-2">Kit</th>
+                                <th className="px-3 py-2">Item</th>
+                                <th className="px-3 py-2">Commentaire</th>
                               </tr>
+                            </thead>
+                            <tbody>
+                              {preview.rows.map(r => (
+                                <tr key={r.row} className="border-b border-slate-50">
+                                  <td className="px-3 py-1.5 text-slate-400">{r.row}</td>
+                                  <td className="px-3 py-1.5 font-mono font-semibold">{r.apn}</td>
+                                  <td className="px-3 py-1.5">{r.equipment || '—'}</td>
+                                  <td className="px-3 py-1.5 font-mono">{r.component_apn || '—'}</td>
+                                  <td className="px-3 py-1.5">{r.customer_id || '—'}</td>
+                                  <td className="px-3 py-1.5">{r.kit || '—'}</td>
+                                  <td className="px-3 py-1.5">{r.item || '—'}</td>
+                                  <td className="px-3 py-1.5 text-slate-500 max-w-[180px] truncate" title={r.comments || ''}>
+                                    {r.comments || '—'}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        {preview.ignored_details?.length > 0 && (
+                          <div className="px-4 py-2 bg-amber-50 border-t border-amber-100 text-xs text-amber-700 max-h-20 overflow-y-auto">
+                            {preview.ignored_details.map(d => (
+                              <div key={d.row}>Ligne {d.row} : {d.reason}</div>
                             ))}
-                          </tbody>
-                        </table>
+                          </div>
+                        )}
                       </div>
-                      {preview.ignored_details?.length > 0 && (
-                        <div className="px-4 py-2 bg-amber-50 border-t border-amber-100 text-xs text-amber-700 max-h-20 overflow-y-auto">
-                          {preview.ignored_details.map(d => (
-                            <div key={d.row}>Ligne {d.row} : {d.reason}</div>
-                          ))}
+                    )}
+                  </>
+                )}
+              </>
+            )}
+
+            {/* ── Matrix tab ── */}
+            {tab === 'matrix' && (
+              <>
+                {mError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2.5">{mError}</p>}
+
+                {mResult ? (
+                  <div className="text-center py-6 space-y-3">
+                    <div className="text-emerald-600 text-4xl">✓</div>
+                    <p className="font-semibold text-slate-800">Import terminé</p>
+                    <p className="text-sm text-slate-600">
+                      <b>{mResult.created}</b> créé(s), <b>{mResult.updated}</b> mis à jour.
+                    </p>
+                    {mResult.errors?.length > 0 && (
+                      <div className="text-xs text-amber-700 bg-amber-50 rounded-lg p-2 max-h-24 overflow-y-auto text-left">
+                        {mResult.errors.map((e, i) => <div key={i}>{e}</div>)}
+                      </div>
+                    )}
+                    <Button colorPalette="blue" mx="auto" onClick={onClose}>Fermer</Button>
+                  </div>
+                ) : (
+                  <>
+                    <div
+                      onDragOver={e => { e.preventDefault(); setMDragging(true) }}
+                      onDragLeave={() => setMDragging(false)}
+                      onDrop={handleMatrixDrop}
+                      onClick={() => mFileRef.current?.click()}
+                      className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                        mDragging ? 'border-blue-400 bg-blue-50' : 'border-slate-300 hover:border-blue-400 hover:bg-slate-50'
+                      }`}
+                    >
+                      <input ref={mFileRef} type="file" accept=".csv" className="hidden"
+                        onChange={e => { setMFile(e.target.files[0] || null); setMResult(null) }} />
+                      {mFile ? (
+                        <div>
+                          <p className="font-medium text-slate-700">{mFile.name}</p>
+                          <p className="text-xs text-slate-400 mt-1">{(mFile.size / 1024).toFixed(1)} Ko</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-slate-500 mb-1">Glissez un fichier CSV ici</p>
+                          <p className="text-xs text-slate-400">ou cliquez pour parcourir</p>
                         </div>
                       )}
                     </div>
-                  )}
-                </>
-              )}
-            </>
-          )}
-
-          {/* ── Matrix tab ── */}
-          {tab === 'matrix' && (
-            <>
-              {mError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2.5">{mError}</p>}
-
-              {mResult ? (
-                <div className="text-center py-6 space-y-3">
-                  <div className="text-emerald-600 text-4xl">✓</div>
-                  <p className="font-semibold text-slate-800">Import terminé</p>
-                  <p className="text-sm text-slate-600">
-                    <b>{mResult.created}</b> créé(s), <b>{mResult.updated}</b> mis à jour.
-                  </p>
-                  {mResult.errors?.length > 0 && (
-                    <div className="text-xs text-amber-700 bg-amber-50 rounded-lg p-2 max-h-24 overflow-y-auto text-left">
-                      {mResult.errors.map((e, i) => <div key={i}>{e}</div>)}
+                    <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-500">
+                      <p className="font-medium text-slate-600 mb-1">Colonnes attendues :</p>
+                      <code>reference, designation, quantity, sample_type, notes</code>
                     </div>
-                  )}
-                  <button className="btn-primary mx-auto" onClick={onClose}>Fermer</button>
-                </div>
-              ) : (
-                <>
-                  <div
-                    onDragOver={e => { e.preventDefault(); setMDragging(true) }}
-                    onDragLeave={() => setMDragging(false)}
-                    onDrop={handleMatrixDrop}
-                    onClick={() => mFileRef.current?.click()}
-                    className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                      mDragging ? 'border-blue-400 bg-blue-50' : 'border-slate-300 hover:border-blue-400 hover:bg-slate-50'
-                    }`}
-                  >
-                    <input ref={mFileRef} type="file" accept=".csv" className="hidden"
-                      onChange={e => { setMFile(e.target.files[0] || null); setMResult(null) }} />
-                    {mFile ? (
-                      <div>
-                        <p className="font-medium text-slate-700">{mFile.name}</p>
-                        <p className="text-xs text-slate-400 mt-1">{(mFile.size / 1024).toFixed(1)} Ko</p>
-                      </div>
-                    ) : (
-                      <div>
-                        <p className="text-slate-500 mb-1">Glissez un fichier CSV ici</p>
-                        <p className="text-xs text-slate-400">ou cliquez pour parcourir</p>
-                      </div>
-                    )}
-                  </div>
-                  <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-500">
-                    <p className="font-medium text-slate-600 mb-1">Colonnes attendues :</p>
-                    <code>reference, designation, quantity, sample_type, notes</code>
-                  </div>
-                </>
-              )}
-            </>
-          )}
-
-        </div>
-
-        {tab === 'excel' && !result && (
-          <div className="flex justify-end gap-2 px-5 py-4 border-t border-slate-100">
-            <button className="btn-secondary" onClick={onClose}>Annuler</button>
-            {!preview ? (
-              <button className="btn-primary" onClick={handlePreview} disabled={busy}>
-                {busy ? 'Lecture…' : 'Aperçu'}
-              </button>
-            ) : (
-              <>
-                <button className="btn-secondary" onClick={handlePreview} disabled={busy}>
-                  Relire le fichier
-                </button>
-                <button className="btn-primary" onClick={handleConfirm}
-                  disabled={busy || preview.total === 0}>
-                  {busy ? 'Import…' : `Confirmer (${preview.total} échantillons)`}
-                </button>
+                  </>
+                )}
               </>
             )}
-          </div>
-        )}
-        {tab === 'matrix' && !mResult && (
-          <div className="flex justify-end gap-2 px-5 py-4 border-t border-slate-100">
-            <button className="btn-secondary" onClick={onClose}>Annuler</button>
-            <button className="btn-primary" onClick={handleMatrixImport} disabled={mBusy || !mFile}>
-              {mBusy ? 'Import…' : 'Importer'}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+
+          </Dialog.Body>
+
+          <Dialog.Footer borderTopWidth="1px" borderColor="gray.100">
+            {tab === 'excel' && !result && (
+              <>
+                <Button variant="outline" onClick={onClose}>Annuler</Button>
+                {!preview ? (
+                  <Button colorPalette="blue" onClick={handlePreview} loading={busy} loadingText="Lecture…">Aperçu</Button>
+                ) : (
+                  <>
+                    <Button variant="outline" onClick={handlePreview} disabled={busy}>Relire le fichier</Button>
+                    <Button colorPalette="blue" onClick={handleConfirm} disabled={busy || preview.total === 0}
+                      loading={busy} loadingText="Import…">
+                      Confirmer ({preview.total} échantillons)
+                    </Button>
+                  </>
+                )}
+              </>
+            )}
+            {tab === 'matrix' && !mResult && (
+              <>
+                <Button variant="outline" onClick={onClose}>Annuler</Button>
+                <Button colorPalette="blue" onClick={handleMatrixImport} disabled={mBusy || !mFile}
+                  loading={mBusy} loadingText="Import…">
+                  Importer
+                </Button>
+              </>
+            )}
+          </Dialog.Footer>
+        </Dialog.Content>
+      </Dialog.Positioner>
+    </Dialog.Root>
   )
 }
 

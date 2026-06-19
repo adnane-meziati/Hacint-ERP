@@ -1,4 +1,5 @@
 ﻿import { useCallback, useEffect, useState } from 'react'
+import { Button, Dialog, Input, Spinner } from '@chakra-ui/react'
 import { deleteJimideDxf, getJimideDxfFiles, uploadJimideDxf } from '../../api/client'
 
 const MAX_DXF_MB = 100
@@ -47,64 +48,65 @@ function UploadModal({ onSuccess, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
-      <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-lg w-full sm:max-w-md p-6">
-        <h3 className="font-semibold text-slate-800 text-lg mb-4">Importer un fichier DXF — JIMIDE-4030</h3>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="label">Fichier DXF</label>
-            <input
-              type="file"
-              accept=".dxf"
-              onChange={(e) => pickFile(e.target.files[0] || null)}
-              className="input text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-            />
-            <p className="text-xs text-slate-400 mt-1">Format accepté : .dxf — Maximum {MAX_DXF_MB} MB</p>
-          </div>
-
-          <div>
-            <label className="label">Description <span className="text-slate-400 font-normal">(optionnel)</span></label>
-            <input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="ex: Plan de la pièce X, révision 2…"
-              className="input"
-            />
-          </div>
-
-          {error && (
-            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2.5">{error}</p>
-          )}
-
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-secondary">Annuler</button>
-            <button type="submit" className="btn-primary" disabled={uploading || !file}>
-              {uploading ? 'Envoi…' : '⬆ Importer'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Dialog.Root open onOpenChange={({ open }) => !open && onClose()} placement="center" size="md">
+      <Dialog.Backdrop />
+      <Dialog.Positioner>
+        <Dialog.Content mx="4">
+          <Dialog.Header>
+            <Dialog.Title>Importer un fichier DXF — JIMIDE-4030</Dialog.Title>
+          </Dialog.Header>
+          <Dialog.Body spaceY="4">
+            <form id="dxf-upload-form" onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="label">Fichier DXF</label>
+                <input type="file" accept=".dxf"
+                  onChange={(e) => pickFile(e.target.files[0] || null)}
+                  className="input text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer" />
+                <p className="text-xs text-slate-400 mt-1">Format accepté : .dxf — Maximum {MAX_DXF_MB} MB</p>
+              </div>
+              <div>
+                <label className="label">Description <span className="text-slate-400 font-normal">(optionnel)</span></label>
+                <Input value={description} onChange={(e) => setDescription(e.target.value)}
+                  placeholder="ex: Plan de la pièce X, révision 2…" />
+              </div>
+              {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2.5">{error}</p>}
+            </form>
+          </Dialog.Body>
+          <Dialog.Footer>
+            <Button variant="outline" onClick={onClose}>Annuler</Button>
+            <Button type="submit" form="dxf-upload-form" colorPalette="blue"
+              disabled={uploading || !file} loading={uploading} loadingText="Envoi…">
+              ⬆ Importer
+            </Button>
+          </Dialog.Footer>
+        </Dialog.Content>
+      </Dialog.Positioner>
+    </Dialog.Root>
   )
 }
 
 // ─── Confirm delete dialog ─────────────────────────────────────────────────────
 function ConfirmDeleteModal({ fileName, onConfirm, onCancel }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
-      <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-lg w-full sm:max-w-sm p-6">
-        <h3 className="font-semibold text-slate-800 mb-2">Supprimer le fichier ?</h3>
-        <p className="text-sm text-slate-500 mb-6">
-          <span className="font-medium text-slate-700">{fileName}</span> sera définitivement supprimé de la base de données.
-        </p>
-        <div className="flex justify-end gap-3">
-          <button onClick={onCancel} className="btn-secondary">Annuler</button>
-          <button onClick={onConfirm} className="btn-danger">Supprimer</button>
-        </div>
-      </div>
-    </div>
+    <Dialog.Root open onOpenChange={({ open }) => !open && onCancel()} placement="center" size="sm">
+      <Dialog.Backdrop />
+      <Dialog.Positioner>
+        <Dialog.Content mx="4">
+          <Dialog.Header pb="1">
+            <Dialog.Title>Supprimer le fichier ?</Dialog.Title>
+          </Dialog.Header>
+          <Dialog.Body>
+            <p className="text-sm text-slate-500">
+              <span className="font-medium text-slate-700">{fileName}</span> sera définitivement supprimé de la base de données.
+            </p>
+          </Dialog.Body>
+          <Dialog.Footer>
+            <Button variant="outline" onClick={onCancel}>Annuler</Button>
+            <Button colorPalette="red" onClick={onConfirm}>Supprimer</Button>
+          </Dialog.Footer>
+        </Dialog.Content>
+      </Dialog.Positioner>
+    </Dialog.Root>
   )
 }
 
@@ -197,8 +199,8 @@ export default function Jimide4030Page() {
         </div>
 
         {loading ? (
-          <div className="text-center py-16 text-slate-400">
-            <div className="inline-block w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mb-3" />
+          <div className="flex flex-col items-center gap-3 py-16 text-slate-400">
+            <Spinner color="blue.600" />
             <p className="text-sm">Chargement…</p>
           </div>
         ) : filtered.length === 0 ? (

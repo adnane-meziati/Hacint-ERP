@@ -1,4 +1,5 @@
 ﻿import { useCallback, useEffect, useRef, useState } from 'react'
+import { Button, Dialog, Input, NativeSelect, Spinner } from '@chakra-ui/react'
 import { deleteProgrammerFile, getProjects, getSamples, resetProgrammer, setProgrammerStatus, setRework, uploadGcode } from '../../api/client'
 
 const PLACEHOLDER = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"%3E%3Crect width="40" height="40" fill="%23e2e8f0"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="14" fill="%2394a3b8"%3E📷%3C/text%3E%3C/svg%3E'
@@ -41,23 +42,32 @@ function formatTime(minutes) {
 function PauseModal({ sample, onConfirm, onCancel }) {
   const [reason, setReason] = useState('')
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
-      <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-lg w-full sm:max-w-sm p-6">
-        <h3 className="font-semibold text-slate-800 text-lg mb-1">Justification de la pause</h3>
-        <p className="text-sm text-slate-500 mb-4">
-          <span className="font-medium text-slate-700">{sample.apn}</span>
-          <span className="mx-1.5 text-slate-300">—</span>{sample.project}
-        </p>
-        <select value={reason} onChange={(e) => setReason(e.target.value)} className="input">
-          <option value="">Sélectionner une raison…</option>
-          {PAUSE_REASONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-        </select>
-        <div className="flex justify-end gap-3 mt-6">
-          <button onClick={onCancel} className="btn-secondary">Annuler</button>
-          <button onClick={() => onConfirm(reason)} disabled={!reason} className="btn-primary">⏸ Mettre en pause</button>
-        </div>
-      </div>
-    </div>
+    <Dialog.Root open onOpenChange={({ open }) => !open && onCancel()} placement="center" size="sm">
+      <Dialog.Backdrop />
+      <Dialog.Positioner>
+        <Dialog.Content mx="4">
+          <Dialog.Header pb="1">
+            <Dialog.Title>Justification de la pause</Dialog.Title>
+          </Dialog.Header>
+          <Dialog.Body spaceY="3">
+            <p className="text-sm text-slate-500">
+              <span className="font-medium text-slate-700">{sample.apn}</span>
+              <span className="mx-1.5 text-slate-300">—</span>{sample.project}
+            </p>
+            <NativeSelect.Root>
+              <NativeSelect.Field value={reason} onChange={(e) => setReason(e.target.value)}>
+                <option value="">Sélectionner une raison…</option>
+                {PAUSE_REASONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+              </NativeSelect.Field>
+            </NativeSelect.Root>
+          </Dialog.Body>
+          <Dialog.Footer>
+            <Button variant="outline" onClick={onCancel}>Annuler</Button>
+            <Button colorPalette="blue" disabled={!reason} onClick={() => onConfirm(reason)}>⏸ Mettre en pause</Button>
+          </Dialog.Footer>
+        </Dialog.Content>
+      </Dialog.Positioner>
+    </Dialog.Root>
   )
 }
 
@@ -84,85 +94,89 @@ function GcodeUploadModal({ sample, onSuccess, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
-      <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-lg w-full sm:max-w-md p-6">
-        <h3 className="font-semibold text-slate-800 text-lg mb-1">Upload G-code</h3>
-        <p className="text-sm text-slate-500 mb-4">
-          <span className="font-medium text-slate-700">{sample.apn}</span>
-          <span className="mx-1.5 text-slate-300">—</span>
-          {sample.project}
-        </p>
-
-        {sample.programmerFiles && sample.programmerFiles.length > 0 && (
-          <div className="bg-slate-50 rounded-lg p-3 mb-4 text-xs border border-slate-200">
-            <p className="text-slate-500 font-medium mb-1">Fichiers actuels :</p>
-            <div className="space-y-1">
-              {sample.programmerFiles.map((pf) => (
-                <div key={pf.id} className="flex items-center gap-2">
-                  <span className="px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-bold text-[10px]">NC</span>
-                  <span className="text-slate-700 truncate">{pf.file_name}</span>
+    <Dialog.Root open onOpenChange={({ open }) => !open && onClose()} placement="center" size="md">
+      <Dialog.Backdrop />
+      <Dialog.Positioner>
+        <Dialog.Content mx="4">
+          <Dialog.Header pb="1">
+            <Dialog.Title>Upload G-code</Dialog.Title>
+          </Dialog.Header>
+          <Dialog.Body spaceY="4">
+            <p className="text-sm text-slate-500">
+              <span className="font-medium text-slate-700">{sample.apn}</span>
+              <span className="mx-1.5 text-slate-300">—</span>
+              {sample.project}
+            </p>
+            {sample.programmerFiles && sample.programmerFiles.length > 0 && (
+              <div className="bg-slate-50 rounded-lg p-3 text-xs border border-slate-200">
+                <p className="text-slate-500 font-medium mb-1">Fichiers actuels :</p>
+                <div className="space-y-1">
+                  {sample.programmerFiles.map((pf) => (
+                    <div key={pf.id} className="flex items-center gap-2">
+                      <span className="px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-bold text-[10px]">NC</span>
+                      <span className="text-slate-700 truncate">{pf.file_name}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="label">Fichiers G-code</label>
-            <input
-              type="file"
-              multiple
-              onChange={(e) => setGcodeFiles(Array.from(e.target.files))}
-              className="input text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-green-50 file:text-green-700 hover:file:bg-green-100 cursor-pointer"
-            />
-            <p className="text-xs text-slate-400 mt-1">Fichiers sans extension (ex: OP10-13913253) ou .txt .nc .tap .mpf — sélection multiple possible</p>
-          </div>
-
-          {/* Fichiers sélectionnés */}
-          {gcodeFiles.length > 0 && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3 space-y-1.5">
-              <p className="text-xs font-medium text-green-700 mb-1">{gcodeFiles.length} fichier{gcodeFiles.length > 1 ? 's' : ''} sélectionné{gcodeFiles.length > 1 ? 's' : ''} :</p>
-              {gcodeFiles.map((f, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span className="px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-bold text-[10px]">NC</span>
-                  <span className="text-sm text-green-800 font-medium truncate flex-1">{f.name}</span>
-                  <span className="text-xs text-green-600 shrink-0">({(f.size / 1024).toFixed(1)} KB)</span>
+              </div>
+            )}
+            <form id="gcode-form" onSubmit={handleSubmit} className="space-y-3">
+              <div>
+                <label className="label">Fichiers G-code</label>
+                <input type="file" multiple
+                  onChange={(e) => setGcodeFiles(Array.from(e.target.files))}
+                  className="input text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-green-50 file:text-green-700 hover:file:bg-green-100 cursor-pointer" />
+                <p className="text-xs text-slate-400 mt-1">Fichiers sans extension (ex: OP10-13913253) ou .txt .nc .tap .mpf — sélection multiple possible</p>
+              </div>
+              {gcodeFiles.length > 0 && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 space-y-1.5">
+                  <p className="text-xs font-medium text-green-700 mb-1">{gcodeFiles.length} fichier{gcodeFiles.length > 1 ? 's' : ''} sélectionné{gcodeFiles.length > 1 ? 's' : ''} :</p>
+                  {gcodeFiles.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-bold text-[10px]">NC</span>
+                      <span className="text-sm text-green-800 font-medium truncate flex-1">{f.name}</span>
+                      <span className="text-xs text-green-600 shrink-0">({(f.size / 1024).toFixed(1)} KB)</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-
-          {error && (
-            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2.5">{error}</p>
-          )}
-
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-secondary">Fermer</button>
-            <button type="submit" className="btn-primary" disabled={uploading || gcodeFiles.length === 0}>
-              {uploading ? 'Envoi…' : '⬆ Envoyer'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+              )}
+              {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2.5">{error}</p>}
+            </form>
+          </Dialog.Body>
+          <Dialog.Footer>
+            <Button variant="outline" onClick={onClose}>Fermer</Button>
+            <Button type="submit" form="gcode-form" colorPalette="green"
+              disabled={uploading || gcodeFiles.length === 0} loading={uploading} loadingText="Envoi…">
+              ⬆ Envoyer
+            </Button>
+          </Dialog.Footer>
+        </Dialog.Content>
+      </Dialog.Positioner>
+    </Dialog.Root>
   )
 }
 
 function ReworkModal({ sample, onConfirm, onCancel }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
-      <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-lg w-full sm:max-w-sm p-6">
-        <h3 className="font-semibold text-slate-800 text-lg mb-1">Retourner en rework</h3>
-        <p className="text-sm text-slate-500 mb-5">
-          Renvoyer <span className="font-medium text-slate-700">{sample.apn}</span> au designer pour correction ? Le chrono sera remis à zéro.
-        </p>
-        <div className="flex justify-end gap-3">
-          <button onClick={onCancel} className="btn-secondary">Annuler</button>
-          <button onClick={onConfirm} className="btn-danger">↺ Confirmer rework</button>
-        </div>
-      </div>
-    </div>
+    <Dialog.Root open onOpenChange={({ open }) => !open && onCancel()} placement="center" size="sm">
+      <Dialog.Backdrop />
+      <Dialog.Positioner>
+        <Dialog.Content mx="4">
+          <Dialog.Header pb="1">
+            <Dialog.Title>Retourner en rework</Dialog.Title>
+          </Dialog.Header>
+          <Dialog.Body>
+            <p className="text-sm text-slate-500">
+              Renvoyer <span className="font-medium text-slate-700">{sample.apn}</span> au designer pour correction ? Le chrono sera remis à zéro.
+            </p>
+          </Dialog.Body>
+          <Dialog.Footer>
+            <Button variant="outline" onClick={onCancel}>Annuler</Button>
+            <Button colorPalette="red" onClick={onConfirm}>↺ Confirmer rework</Button>
+          </Dialog.Footer>
+        </Dialog.Content>
+      </Dialog.Positioner>
+    </Dialog.Root>
   )
 }
 
@@ -318,8 +332,8 @@ export default function ProgrammerPage({ currentUser }) {
         </div>
 
         {loading ? (
-          <div className="text-center py-16 text-slate-400">
-            <div className="inline-block w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mb-3" />
+          <div className="flex flex-col items-center gap-3 py-16 text-slate-400">
+            <Spinner color="blue.600" />
             <p className="text-sm">Chargement…</p>
           </div>
         ) : samples.length === 0 ? (
@@ -498,7 +512,7 @@ function ProgrammerCard({ sample: s, now, busy, currentUserId, onStatusChange, o
 
       <div className="mt-3">
         {busy ? (
-          <div className="flex justify-center py-2"><div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
+          <div className="flex justify-center py-2"><Spinner color="blue.500" size="sm" /></div>
         ) : lockedByOther ? (
           <div className="text-xs text-slate-400 bg-slate-50 rounded-lg px-3 py-2.5 text-center">🔒 En cours par {s.programmerLockedBy}</div>
         ) : s.is_rework ? (
@@ -618,7 +632,7 @@ function ProgrammerRow({ sample: s, now, busy, currentUserId, onStatusChange, on
       </td>
       <td className="px-4 py-3">
         {busy ? (
-          <div className="inline-block w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <Spinner color="blue.500" size="xs" />
         ) : lockedByOther ? (
           <span className="inline-flex items-center gap-1 text-xs text-slate-400">🔒 {s.programmerLockedBy}</span>
         ) : s.is_rework ? (
