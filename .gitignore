@@ -1,0 +1,22 @@
+# Python virtual environments — never share between machines
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Django
+*.sqlite3
+backend/media/
+backend/staticfiles/
+backend/frontend_dist/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Environment files
+.env
