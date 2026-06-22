@@ -543,6 +543,7 @@ urlpatterns = [
     path('api/hr/',                        include('hr.urls')),
     path('api/logistics/',                 include('logistics.urls')),
     path('api/installation/',              include('installation.urls')),
+    path('api/procurement/',              include('procurement.urls')),
     path('api/',                           include('samples.urls')),
 
     re_path(r'^media/(?P<file_path>.+)$', serve_cad_file),

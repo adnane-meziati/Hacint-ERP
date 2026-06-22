@@ -342,6 +342,40 @@ export async function deleteUser(id) {
   await api.delete(`/auth/users/${id}/`)
 }
 
+// ── Procurement ───────────────────────────────────────────────────────────────
+export async function getProcurementRequests(params = {}) {
+  const { data } = await api.get('/procurement/', { params })
+  return data
+}
+
+export async function createProcurementRequest(payload) {
+  const form = new FormData()
+  Object.entries(payload).forEach(([k, v]) => { if (v !== undefined && v !== null) form.append(k, v) })
+  const { data } = await api.post('/procurement/', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+  return data
+}
+
+export async function updateProcurementRequest(id, payload) {
+  const form = new FormData()
+  Object.entries(payload).forEach(([k, v]) => { if (v !== undefined && v !== null) form.append(k, v) })
+  const { data } = await api.patch(`/procurement/${id}/`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
+  return data
+}
+
+export async function deleteProcurementRequest(id) {
+  await api.delete(`/procurement/${id}/`)
+}
+
+export async function approveProcurementRequest(id, payload = {}) {
+  const { data } = await api.post(`/procurement/${id}/approve/`, payload)
+  return data
+}
+
+export async function rejectProcurementRequest(id, payload = {}) {
+  const { data } = await api.post(`/procurement/${id}/reject/`, payload)
+  return data
+}
+
 // ── Storage — Catégories ──────────────────────────────────────────────────────
 export async function getCategories(params = {}) {
   const { data } = await api.get('/storage/categories/', { params })

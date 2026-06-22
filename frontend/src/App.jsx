@@ -23,6 +23,7 @@ import HRPage from './components/hr/HrPage'
 import LogisticsPage from './components/logistics/LogisticsPage'
 import SalesPage from './components/sales/SalesPage'
 import InstallationPage from './components/installation/InstallationPage'
+import ProcurementPage from './components/procurement/ProcurementPage'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -64,6 +65,7 @@ const ACCOUNTING_TABS = [
   { id: 'factures',    label: 'Factures' },
   { id: 'avoirs',      label: 'Avoirs' },
   { id: 'achats',      label: 'Achats' },
+  { id: 'demandes',   label: 'Demandes d\'achat' },
   { id: 'paiements',   label: 'Paiements' },
   { id: 'tva',         label: 'TVA' },
   { id: 'ecritures',   label: 'Écritures' },
@@ -884,6 +886,7 @@ export default function App() {
   const [installationTab, setInstallationTab] = useState(
     () => sessionStorage.getItem('hacint_installation_tab') || 'dashboard'
   )
+  const [managerTab, setManagerTab] = useState('module')
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -1330,6 +1333,59 @@ export default function App() {
         </header>
         <main className="flex-1 overflow-y-auto">
           <AccountingPage tab={accountingTab} currentUser={user} />
+        </main>
+      </div>
+    )
+  }
+
+  // ── MANAGER ROLES — module page + procurement tab ────────────────────────
+  const MANAGER_MODULE_PAGE = {
+    production_manager:   <>{productionContent}</>,
+    storage_manager:      <StoragePage tab={storageTab} currentUser={user} />,
+    hr_manager:           <HRPage tab={hrTab} currentUser={user} />,
+    logistics_manager:    <LogisticsPage tab={logisticsTab} currentUser={user} onTabChange={changeLogisticsTab} />,
+    installation_manager: <InstallationPage installationTab={installationTab} onTabChange={changeInstallationTab} currentUser={user} />,
+    accounting_manager:   <AccountingPage tab={accountingTab} currentUser={user} />,
+    sales_manager:        <SalesPage currentUser={user} />,
+  }
+
+  if (MANAGER_MODULE_PAGE[user.role] !== undefined) {
+    const SECTION_LABEL = {
+      production_manager:   'Production',
+      storage_manager:      'Stockage',
+      hr_manager:           'RH',
+      logistics_manager:    'Logistique',
+      installation_manager: 'Installation',
+      accounting_manager:   'Comptabilité',
+      sales_manager:        'Ventes',
+    }
+    return (
+      <div className="flex flex-col h-screen bg-slate-50">
+        <header className="flex-shrink-0 bg-white border-b border-slate-200 shadow-sm z-10">
+          <AppHeader user={user} onLogout={handleLogout} section={user.role.replace('_manager', '')} />
+          {/* Manager tab bar */}
+          <nav className="flex border-t border-slate-100 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+            {[
+              { id: 'module',      label: SECTION_LABEL[user.role] },
+              { id: 'procurement', label: '🛒 Demandes d\'achat' },
+            ].map(t => (
+              <button
+                key={t.id}
+                onClick={() => setManagerTab(t.id)}
+                className={`flex-shrink-0 px-4 sm:px-5 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  managerTab === t.id
+                    ? 'border-blue-600 text-blue-600 bg-blue-50/40'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </nav>
+        </header>
+        <main className="flex-1 overflow-y-auto">
+          {managerTab === 'module'      && MANAGER_MODULE_PAGE[user.role]}
+          {managerTab === 'procurement' && <ProcurementPage currentUser={user} />}
         </main>
       </div>
     )

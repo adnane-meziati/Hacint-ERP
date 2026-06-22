@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     'hr',
     'logistics',
     'installation',
+    'procurement',
 ]
 
 MIDDLEWARE = [

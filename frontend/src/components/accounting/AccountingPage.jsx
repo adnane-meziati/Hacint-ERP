@@ -9,6 +9,7 @@ import {
   getTvaRapport, tvaReleveDeductionsUrl, tvaExportXlsxUrl,
 } from '../../api/client'
 import DocumentModal from './DocumentModal'
+import ProcurementAccountingTab from '../procurement/ProcurementAccountingTab'
 import AssetLifespanTab from './AssetLifespanTab'
 import {
   BalanceEtatsTab, EcrituresTab, GrandLivreTab, PcgeTab,
@@ -1101,6 +1102,7 @@ export default function AccountingPage({ tab, currentUser }) {
       {tab === 'tiers'       && <TiersTab />}
       {tab === 'actifs'      && <AssetLifespanTab />}
       {tab === 'parametres'  && <ParametresTab />}
+      {tab === 'demandes'    && <ProcurementAccountingTab />}
     </div>
   )
 }
