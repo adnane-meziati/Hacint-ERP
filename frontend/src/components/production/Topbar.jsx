@@ -15,9 +15,6 @@ export default function Topbar({ user, onLogout, page, onPageChange }) {
   const { t, i18n } = useTranslation()
   const role = user?.role ?? 'admin'
   const tabs = ALL_TABS.filter((tab) => tab.roles.includes(role))
-  const displayName = user?.firstName
-    ? `${user.firstName} ${user.lastName}`.trim()
-    : user?.username
   const currentLang = i18n.language
   const toggleLanguage = () => {
     const newLang = currentLang === 'fr' ? 'en' : 'fr'
@@ -36,11 +33,6 @@ export default function Topbar({ user, onLogout, page, onPageChange }) {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {displayName && (
-              <span className="text-xs sm:text-sm text-slate-500 hidden xs:inline max-w-[100px] sm:max-w-none truncate">
-                {displayName}
-              </span>
-            )}
             <button
               onClick={toggleLanguage}
               className="text-xs sm:text-sm text-slate-500 hover:text-slate-700 transition-colors px-1.5 py-0.5 rounded border border-slate-200"

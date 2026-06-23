@@ -5,6 +5,7 @@ from .views import (
     project_approve_apn, project_create, project_import_excel,
     project_sample_delete, project_samples, project_update_status,
     validation_approve, validation_list, validation_run,
+    project_flow,
     # Sales
     SalesRecordViewSet,
     sales_opportunities_export, sales_project_document_delete,
@@ -20,6 +21,7 @@ router.register(r'matrix',    MatrixEntryViewSet, basename='matrix')
 router.register(r'sales/records', SalesRecordViewSet, basename='sales-record')
 
 urlpatterns = [
+    path('samples/project-flow/', project_flow, name='project-flow'),
     path('', include(router.urls)),
     path('validation/',         validation_list,    name='validation-list'),
     path('validation/run/',     validation_run,     name='validation-run'),

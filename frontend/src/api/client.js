@@ -88,6 +88,11 @@ export async function getProjects() {
   return data  // string[]
 }
 
+export async function getProjectFlow() {
+  const { data } = await api.get('/samples/project-flow/')
+  return data
+}
+
 export async function getSamples(params = {}) {
   const { data } = await api.get('/samples/', { params })
   return data

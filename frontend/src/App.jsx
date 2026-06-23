@@ -24,6 +24,7 @@ import LogisticsPage from './components/logistics/LogisticsPage'
 import SalesPage from './components/sales/SalesPage'
 import InstallationPage from './components/installation/InstallationPage'
 import ProcurementPage from './components/procurement/ProcurementPage'
+import ProductionFlowPage from './components/production/ProductionFlowPage'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -116,9 +117,6 @@ const SECTION_CHIPS = {
 
 function AppHeader({ user, onLogout, section, showDrawer = false, onDrawerToggle = () => {} }) {
   const { t, i18n } = useTranslation()
-  const displayName = user?.firstName
-    ? `${user.firstName} ${user.lastName}`.trim()
-    : user?.username
   const chip = section ? SECTION_CHIPS[section] : null
   const currentLang = i18n.language
   const toggleLanguage = () => {
@@ -152,11 +150,6 @@ function AppHeader({ user, onLogout, section, showDrawer = false, onDrawerToggle
 
       {/* User + language toggle + logout */}
       <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-        {displayName && (
-          <span className="text-xs sm:text-sm text-slate-500 max-w-[100px] sm:max-w-[120px] truncate hidden xs:inline">
-            {displayName}
-          </span>
-        )}
         <button
           onClick={toggleLanguage}
           className="text-xs sm:text-sm text-slate-500 hover:text-slate-700 transition-colors px-1.5 py-0.5 rounded border border-slate-200"
@@ -187,7 +180,6 @@ function ProductionTabBar({ page, onPageChange }) {
     { id: 'cnc',             label: t('app.tabs.cnc') },
     { id: 'assembly',        label: t('app.tabs.assembly') },
     { id: 'quality',         label: t('app.tabs.quality') },
-    { id: 'users',           label: t('app.tabs.users') },
   ]
   return (
     <nav
@@ -258,6 +250,7 @@ function AccountingTabBar({ accountingTab, onTabChange }) {
     { id: 'factures',    label: t('app.tabs.factures') },
     { id: 'avoirs',      label: t('app.tabs.avoirs') },
     { id: 'achats',      label: t('app.tabs.achats') },
+    { id: 'demandes',    label: "Demandes d'achat" },
     { id: 'paiements',   label: t('app.tabs.paiements') },
     { id: 'tva',         label: t('app.tabs.tva') },
     { id: 'ecritures',   label: t('app.tabs.ecritures') },
@@ -1367,6 +1360,7 @@ export default function App() {
           <nav className="flex border-t border-slate-100 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
             {[
               { id: 'module',      label: SECTION_LABEL[user.role] },
+              ...(user.role === 'production_manager' ? [{ id: 'flow', label: '📊 Flux de Production' }] : []),
               { id: 'procurement', label: '🛒 Demandes d\'achat' },
             ].map(t => (
               <button
@@ -1382,9 +1376,26 @@ export default function App() {
               </button>
             ))}
           </nav>
+          {/* Module sub-tab bar — gives the responsable full navigation within their module */}
+          {managerTab === 'module' && user.role === 'production_manager' && (
+            <ProductionTabBar page={page} onPageChange={changePage} />
+          )}
+          {managerTab === 'module' && user.role === 'storage_manager' && (
+            <StorageTabBar storageTab={storageTab} onTabChange={changeStorageTab} />
+          )}
+          {managerTab === 'module' && user.role === 'accounting_manager' && (
+            <AccountingTabBar accountingTab={accountingTab} onTabChange={changeAccountingTab} />
+          )}
+          {managerTab === 'module' && user.role === 'hr_manager' && (
+            <HrTabBar hrTab={hrTab} onTabChange={changeHrTab} />
+          )}
+          {managerTab === 'module' && user.role === 'logistics_manager' && (
+            <LogisticsTabBar logisticsTab={logisticsTab} onTabChange={changeLogisticsTab} />
+          )}
         </header>
         <main className="flex-1 overflow-y-auto">
           {managerTab === 'module'      && MANAGER_MODULE_PAGE[user.role]}
+          {managerTab === 'flow'        && <ProductionFlowPage currentUser={user} />}
           {managerTab === 'procurement' && <ProcurementPage currentUser={user} />}
         </main>
       </div>

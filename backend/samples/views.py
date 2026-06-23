@@ -3039,3 +3039,95 @@ class SalesRecordViewSet(viewsets.ModelViewSet):
             'upcoming_followups': followups,
             'notifications':      notifications,
         })
+
+
+# ── Production Manager Flow Dashboard ─────────────────────────────────────────
+
+@api_view(['GET'])
+@drf_permission_classes([IsAuthenticated])
+def project_flow(request):
+    """Per-project production flow aggregation for the manager dashboard."""
+    from collections import defaultdict
+
+    qs = Sample.objects.values(
+        'project', 'client', 'received_date',
+        'study_approved',
+        'is_done', 'time_spent_minutes', 'designer_status',
+        'programmer_done', 'programmer_time_spent_minutes', 'programmer_status',
+        'cnc_done', 'cnc_time_spent_minutes', 'cnc_status',
+        'assembly_done', 'assembly_time_spent_minutes', 'assembly_status',
+        'quality_done', 'quality_time_spent_minutes', 'quality_status',
+    )
+
+    projects = defaultdict(lambda: {
+        'project': '', 'client': '', 'received_date': None, 'total': 0,
+        'study':      {'done': 0},
+        'designer':   {'done': 0, 'in_progress': 0, 'time_minutes': 0},
+        'programmer': {'done': 0, 'in_progress': 0, 'time_minutes': 0},
+        'cnc':        {'done': 0, 'in_progress': 0, 'time_minutes': 0},
+        'assembly':   {'done': 0, 'in_progress': 0, 'time_minutes': 0},
+        'quality':    {'done': 0, 'in_progress': 0, 'time_minutes': 0},
+    })
+
+    for s in qs:
+        p = s['project']
+        d = projects[p]
+        d['project'] = p
+        if not d['client']:
+            d['client'] = s.get('client') or ''
+        if not d['received_date'] and s.get('received_date'):
+            d['received_date'] = str(s['received_date'])
+        d['total'] += 1
+
+        if s['study_approved']:
+            d['study']['done'] += 1
+
+        if s['is_done']:
+            d['designer']['done'] += 1
+        elif s['designer_status'] == 'ongoing':
+            d['designer']['in_progress'] += 1
+        d['designer']['time_minutes'] += s['time_spent_minutes'] or 0
+
+        if s['programmer_done']:
+            d['programmer']['done'] += 1
+        elif s['programmer_status'] == 'ongoing':
+            d['programmer']['in_progress'] += 1
+        d['programmer']['time_minutes'] += s['programmer_time_spent_minutes'] or 0
+
+        if s['cnc_done']:
+            d['cnc']['done'] += 1
+        elif s['cnc_status'] == 'ongoing':
+            d['cnc']['in_progress'] += 1
+        d['cnc']['time_minutes'] += s['cnc_time_spent_minutes'] or 0
+
+        if s['assembly_done']:
+            d['assembly']['done'] += 1
+        elif s['assembly_status'] == 'ongoing':
+            d['assembly']['in_progress'] += 1
+        d['assembly']['time_minutes'] += s['assembly_time_spent_minutes'] or 0
+
+        if s['quality_done']:
+            d['quality']['done'] += 1
+        elif s['quality_status'] == 'ongoing':
+            d['quality']['in_progress'] += 1
+        d['quality']['time_minutes'] += s['quality_time_spent_minutes'] or 0
+
+    stages = ['designer', 'programmer', 'cnc', 'assembly', 'quality']
+    result = []
+    for d in projects.values():
+        total = d['total']
+        if not total:
+            continue
+        total_time = sum(d[st]['time_minutes'] for st in stages)
+        done_stages = sum(d[st]['done'] for st in stages)
+        completion_pct = round((done_stages / (total * len(stages))) * 100)
+        current_stage = stages[-1]
+        for st in stages:
+            if d[st]['done'] < total:
+                current_stage = st
+                break
+        result.append({**d, 'total_time_minutes': total_time,
+                       'completion_pct': completion_pct, 'current_stage': current_stage})
+
+    result.sort(key=lambda x: x['completion_pct'])
+    return Response(result)
