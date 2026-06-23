@@ -1,19 +1,18 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import hacintLogo from './assets/hacint-logo.png'
 import {
-  exportCsvUrl, fetchCsrf, getMe, getProjects, getSamples,
+  fetchCsrf, getMe,
   login, logout, verifyOtp, resendOtp, changePassword, forgotPassword, resetPassword,
 } from './api/client'
 import AdminUsersPage from './components/production/AdminUsersPage'
 import TechnicalStudyPage from './components/production/TechnicalStudyPage'
+import SampleListPage from './components/production/SampleListPage'
 import AssemblyPage from './components/production/AssemblyPage'
 import CncPage from './components/production/CncPage'
 import DesignerPage from './components/production/DesignerPage'
 import ProgrammerPage from './components/production/ProgrammerPage'
 import QualityPage from './components/production/QualityPage'
-import DetailModal from './components/production/DetailModal'
-import SampleTable from './components/production/SampleTable'
-import { StatCard } from './components/production/_shared'
 import Topbar from './components/production/Topbar'
 import Sidebar from './components/Sidebar'
 import StoragePage from './components/storage/StoragePage'
@@ -22,15 +21,10 @@ import HRPage from './components/hr/HrPage'
 import LogisticsPage from './components/logistics/LogisticsPage'
 import SalesPage from './components/sales/SalesPage'
 import InstallationPage from './components/installation/InstallationPage'
+import ProcurementPage from './components/procurement/ProcurementPage'
+import ProductionFlowPage from './components/production/ProductionFlowPage'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const STATUS_OPTIONS = [
-  { value: 'pending',  label: 'En attente' },
-  { value: 'approved', label: 'Approuvé' },
-  { value: 'rejected', label: 'Rejeté' },
-  { value: 'archived', label: 'Archivé' },
-]
 
 // Admin production tabs (no storage — that's in the sidebar)
 const PROD_TABS_ADMIN = [
@@ -63,6 +57,7 @@ const ACCOUNTING_TABS = [
   { id: 'factures',    label: 'Factures' },
   { id: 'avoirs',      label: 'Avoirs' },
   { id: 'achats',      label: 'Achats' },
+  { id: 'demandes',   label: 'Demandes d\'achat' },
   { id: 'paiements',   label: 'Paiements' },
   { id: 'tva',         label: 'TVA' },
   { id: 'ecritures',   label: 'Écritures' },
@@ -111,17 +106,32 @@ const SECTION_CHIPS = {
   users:        { label: 'Utilisateurs',  cls: 'bg-slate-100 text-slate-700' },
 }
 
-function AppHeader({ user, onLogout, section }) {
-  const displayName = user?.firstName
-    ? `${user.firstName} ${user.lastName}`.trim()
-    : user?.username
+function AppHeader({ user, onLogout, section, showDrawer = false, onDrawerToggle = () => {} }) {
+  const { t, i18n } = useTranslation()
   const chip = section ? SECTION_CHIPS[section] : null
+  const currentLang = i18n.language
+  const toggleLanguage = () => {
+    const newLang = currentLang === 'fr' ? 'en' : 'fr'
+    i18n.changeLanguage(newLang)
+    localStorage.setItem('language', newLang)
+  }
 
   return (
-    <div className="h-12 flex items-center justify-between px-4 sm:px-6">
-      {/* Logo + section chip */}
-      <div className="flex items-center gap-3 shrink-0">
-        <img src={hacintLogo} alt="Hacint" className="h-6 sm:h-7 w-auto" />
+    <div className="h-12 flex items-center justify-between px-3 sm:px-6">
+      {/* Hamburger (mobile only) + Logo + section chip */}
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        {showDrawer && (
+          <button
+            onClick={onDrawerToggle}
+            className="inline-flex sm:hidden text-slate-500 hover:text-slate-700 transition-colors p-1 rounded"
+            aria-label={t('app.openMenu')}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        )}
+        <img src={hacintLogo} alt={t('app.logoAlt')} className="h-6 sm:h-7 w-auto" />
         {chip && (
           <span className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold ${chip.cls}`}>
             {chip.label}
@@ -129,18 +139,20 @@ function AppHeader({ user, onLogout, section }) {
         )}
       </div>
 
-      {/* User + logout */}
-      <div className="flex items-center gap-3 sm:gap-4 shrink-0">
-        {displayName && (
-          <span className="text-xs sm:text-sm text-slate-500 max-w-[120px] truncate hidden xs:inline">
-            {displayName}
-          </span>
-        )}
+      {/* User + language toggle + logout */}
+      <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+        <button
+          onClick={toggleLanguage}
+          className="text-xs sm:text-sm text-slate-500 hover:text-slate-700 transition-colors px-1.5 py-0.5 rounded border border-slate-200"
+          aria-label={t('app.toggleLanguage')}
+        >
+          {currentLang === 'fr' ? 'EN' : 'FR'}
+        </button>
         <button
           onClick={onLogout}
           className="text-xs sm:text-sm text-slate-500 hover:text-red-600 transition-colors font-medium whitespace-nowrap"
         >
-          Déconnexion
+          {t('app.logout')}
         </button>
       </div>
     </div>
@@ -150,12 +162,22 @@ function AppHeader({ user, onLogout, section }) {
 // ─── Production tab bar (admin sidebar layout) ────────────────────────────────
 
 function ProductionTabBar({ page, onPageChange }) {
+  const { t } = useTranslation()
+  const tabs = [
+    { id: 'technical-study', label: t('app.tabs.technicalStudy') },
+    { id: 'dashboard',       label: t('app.tabs.dashboard') },
+    { id: 'designer',        label: t('app.tabs.designer') },
+    { id: 'programmer',      label: t('app.tabs.programmer') },
+    { id: 'cnc',             label: t('app.tabs.cnc') },
+    { id: 'assembly',        label: t('app.tabs.assembly') },
+    { id: 'quality',         label: t('app.tabs.quality') },
+  ]
   return (
     <nav
       className="flex border-t border-slate-100 overflow-x-auto"
       style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
     >
-      {PROD_TABS_ADMIN.map(tab => (
+      {tabs.map(tab => (
         <button
           key={tab.id}
           onClick={() => onPageChange(tab.id)}
@@ -175,22 +197,34 @@ function ProductionTabBar({ page, onPageChange }) {
 // ─── Storage tab bar ──────────────────────────────────────────────────────────
 
 function StorageTabBar({ storageTab, onTabChange }) {
+  const { t } = useTranslation()
+  const tabs = [
+    { id: 'stock',         label: t('app.tabs.stock') },
+    { id: 'articles',      label: t('app.tabs.articles') },
+    { id: 'mouvements',    label: t('app.tabs.mouvements') },
+    { id: 'lots',          label: t('app.tabs.lots') },
+    { id: 'entrepots',     label: t('app.tabs.entrepots') },
+    { id: 'placements',    label: t('app.tabs.placements') },
+    { id: 'categories',    label: t('app.tabs.categories') },
+    { id: 'tickets',       label: t('app.tabs.tickets') },
+    { id: 'bom-materiaux', label: t('app.tabs.bom-materiaux') },
+  ]
   return (
     <nav
       className="flex border-t border-slate-100 overflow-x-auto"
       style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
     >
-      {STORAGE_TABS.map(t => (
+      {tabs.map(tab => (
         <button
-          key={t.id}
-          onClick={() => onTabChange(t.id)}
+          key={tab.id}
+          onClick={() => onTabChange(tab.id)}
           className={`flex-shrink-0 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-            storageTab === t.id
+            storageTab === tab.id
               ? 'border-orange-500 text-orange-600 bg-orange-50/40'
               : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
           }`}
         >
-          {t.label}
+          {tab.label}
         </button>
       ))}
     </nav>
@@ -200,22 +234,40 @@ function StorageTabBar({ storageTab, onTabChange }) {
 // ─── Accounting tab bar ───────────────────────────────────────────────────────
 
 function AccountingTabBar({ accountingTab, onTabChange }) {
+  const { t } = useTranslation()
+  const tabs = [
+    { id: 'dashboard',   label: t('app.tabs.accountingDashboard') },
+    { id: 'devis',       label: t('app.tabs.devis') },
+    { id: 'factures',    label: t('app.tabs.factures') },
+    { id: 'avoirs',      label: t('app.tabs.avoirs') },
+    { id: 'achats',      label: t('app.tabs.achats') },
+    { id: 'demandes',    label: "Demandes d'achat" },
+    { id: 'paiements',   label: t('app.tabs.paiements') },
+    { id: 'tva',         label: t('app.tabs.tva') },
+    { id: 'ecritures',   label: t('app.tabs.ecritures') },
+    { id: 'grand-livre', label: t('app.tabs.grandLivre') },
+    { id: 'balance',     label: t('app.tabs.balance') },
+    { id: 'pcge',        label: t('app.tabs.pcge') },
+    { id: 'tiers',       label: t('app.tabs.tiers') },
+    { id: 'actifs',      label: t('app.tabs.actifs') },
+    { id: 'parametres',  label: t('app.tabs.parametres') },
+  ]
   return (
     <nav
       className="flex border-t border-slate-100 overflow-x-auto"
       style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
     >
-      {ACCOUNTING_TABS.map(t => (
+      {tabs.map(tab => (
         <button
-          key={t.id}
-          onClick={() => onTabChange(t.id)}
+          key={tab.id}
+          onClick={() => onTabChange(tab.id)}
           className={`flex-shrink-0 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-            accountingTab === t.id
+            accountingTab === tab.id
               ? 'border-emerald-500 text-emerald-600 bg-emerald-50/40'
               : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
           }`}
         >
-          {t.label}
+          {tab.label}
         </button>
       ))}
     </nav>
@@ -225,22 +277,32 @@ function AccountingTabBar({ accountingTab, onTabChange }) {
 // ─── HR tab bar ───────────────────────────────────────────────────────────────
 
 function HrTabBar({ hrTab, onTabChange }) {
+  const { t } = useTranslation()
+  const tabs = [
+    { id: 'tableau-de-bord', label: t('app.tabs.hrTableauDeBord') },
+    { id: 'employes',        label: t('app.tabs.employes') },
+    { id: 'conges',          label: t('app.tabs.conges') },
+    { id: 'pointage',        label: t('app.tabs.pointage') },
+    { id: 'contrats',        label: t('app.tabs.contrats') },
+    { id: 'paie',            label: t('app.tabs.paie') },
+    { id: 'recrutement',     label: t('app.tabs.recrutement') },
+  ]
   return (
     <nav
       className="flex border-t border-slate-100 overflow-x-auto"
       style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
     >
-      {HR_TABS.map(t => (
+      {tabs.map(tab => (
         <button
-          key={t.id}
-          onClick={() => onTabChange(t.id)}
+          key={tab.id}
+          onClick={() => onTabChange(tab.id)}
           className={`flex-shrink-0 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-            hrTab === t.id
+            hrTab === tab.id
               ? 'border-purple-500 text-purple-600 bg-purple-50/40'
               : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
           }`}
         >
-          {t.label}
+          {tab.label}
         </button>
       ))}
     </nav>
@@ -250,22 +312,34 @@ function HrTabBar({ hrTab, onTabChange }) {
 // ─── Logistics tab bar ─────────────────────────────────────────────────────────
 
 function LogisticsTabBar({ logisticsTab, onTabChange }) {
+  const { t } = useTranslation()
+  const tabs = [
+    { id: 'tableau-de-bord', label: t('app.tabs.logisticsTableauDeBord') },
+    { id: 'livraisons',      label: t('app.tabs.livraisons') },
+    { id: 'expeditions',     label: t('app.tabs.expeditions') },
+    { id: 'vehicules',       label: t('app.tabs.vehicules') },
+    { id: 'chauffeurs',      label: t('app.tabs.chauffeurs') },
+    { id: 'transferts',      label: t('app.tabs.transferts') },
+    { id: 'taches',          label: t('app.tabs.taches') },
+    { id: 'rapports',        label: t('app.tabs.rapports') },
+    { id: 'notifications',   label: t('app.tabs.notifications') },
+  ]
   return (
     <nav
       className="flex border-t border-slate-100 overflow-x-auto"
       style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
     >
-      {LOGISTICS_TABS.map(t => (
+      {tabs.map(tab => (
         <button
-          key={t.id}
-          onClick={() => onTabChange(t.id)}
+          key={tab.id}
+          onClick={() => onTabChange(tab.id)}
           className={`flex-shrink-0 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-            logisticsTab === t.id
+            logisticsTab === tab.id
               ? 'border-teal-500 text-teal-600 bg-teal-50/40'
               : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
           }`}
         >
-          {t.label}
+          {tab.label}
         </button>
       ))}
     </nav>
@@ -762,19 +836,7 @@ export default function App() {
 
   // ── Production section state ──────────────────────────────────────────────
   const [page, setPage] = useState(() => sessionStorage.getItem('hacint_page') || 'dashboard')
-  const [projectOptions, setProjectOptions] = useState([])
-  const [samples, setSamples] = useState([])
-  const [pagination, setPagination] = useState({ count: 0, next: null, previous: null, page: 1 })
-  const [loading, setLoading] = useState(false)
-  const [search, setSearch] = useState('')
-  const [filterProject, setFilterProject] = useState('')
-  const [filterStatus, setFilterStatus] = useState('')
-  const [filterDateFrom, setFilterDateFrom] = useState('')
-  const [filterDateTo, setFilterDateTo] = useState('')
-  const [modal, setModal] = useState(null)
-  const [selectedSample, setSelectedSample] = useState(null)
-  const searchDebounce = useRef(null)
-  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
   // ── Admin sidebar + storage section state ─────────────────────────────────
   const [section, setSection] = useState(
@@ -795,6 +857,7 @@ export default function App() {
   const [installationTab, setInstallationTab] = useState(
     () => sessionStorage.getItem('hacint_installation_tab') || 'dashboard'
   )
+  const [managerTab, setManagerTab] = useState('module')
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -876,62 +939,16 @@ export default function App() {
             : (landingPage(u.role) || 'dashboard')
           changePage(startPage)
         }
-        return getProjects()
       })
-      .then(setProjectOptions)
       .catch(() => {})
       .finally(() => setAuthChecked(true))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Debounce search ───────────────────────────────────────────────────────
-
-  useEffect(() => {
-    clearTimeout(searchDebounce.current)
-    searchDebounce.current = setTimeout(() => setDebouncedSearch(search), 300)
-    return () => clearTimeout(searchDebounce.current)
-  }, [search])
-
-  // ── Sample data fetching (production dashboard) ───────────────────────────
-
-  const fetchSamples = useCallback(async (p = 1) => {
-    setLoading(true)
-    try {
-      const params = { page: p, approved_only: 'true' }
-      if (debouncedSearch) params.search = debouncedSearch
-      if (filterProject)   params.project = filterProject
-      if (filterStatus)    params.status = filterStatus
-      if (filterDateFrom)  params.date_from = filterDateFrom
-      if (filterDateTo)    params.date_to = filterDateTo
-      const data = await getSamples(params)
-      setSamples(data.results)
-      setPagination({ count: data.count, next: data.next, previous: data.previous, page: p })
-    } finally {
-      setLoading(false)
-    }
-  }, [debouncedSearch, filterProject, filterStatus, filterDateFrom, filterDateTo])
-
-  useEffect(() => {
-    const isSalesRole = user?.role === 'sales_manager' || user?.role === 'sales_employee'
-    if (user && user.role !== 'storage' && user.role !== 'accounting' && !isSalesRole) fetchSamples(1)
-  }, [user, fetchSamples, page])
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
   async function handleLogout() {
     await logout()
     setUser(null)
-  }
-
-  function openDetail(s) { setSelectedSample(s); setModal('detail') }
-
-  function buildExportUrl() {
-    const params = {}
-    if (debouncedSearch) params.search = debouncedSearch
-    if (filterProject)   params.project = filterProject
-    if (filterStatus)    params.status = filterStatus
-    if (filterDateFrom)  params.date_from = filterDateFrom
-    if (filterDateTo)    params.date_to = filterDateTo
-    return exportCsvUrl(params)
   }
 
   // ── Early returns ─────────────────────────────────────────────────────────
@@ -961,22 +978,7 @@ export default function App() {
     )
   }
 
-  // ── Shared modals (production section) ───────────────────────────────────
-
-  const modals = (
-    <>
-      {modal === 'detail' && selectedSample && (
-        <DetailModal
-          sampleId={selectedSample.id}
-          onClose={() => { setModal(null); setSelectedSample(null) }}
-        />
-      )}
-    </>
-  )
-
   // ── Production page content (shared by admin + production roles) ──────────
-
-  const totalPages = Math.ceil(pagination.count / 20)
 
   const productionContent = (
     <>
@@ -987,135 +989,7 @@ export default function App() {
       {page === 'assembly'   && <AssemblyPage currentUser={user} />}
       {page === 'quality'    && <QualityPage currentUser={user} />}
       {page === 'users'      && <AdminUsersPage currentUser={user} />}
-
-      {page === 'dashboard' && (
-        <main className="max-w-screen-xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-3 sm:space-y-4">
-          {/* Toolbar */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 sm:p-4 space-y-3">
-            {/* Row 1: search + actions */}
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Rechercher… (APN, #série, projet, placement, client)"
-                className="input flex-1 min-w-0"
-              />
-              <div className="flex flex-wrap gap-2 shrink-0">
-                <a href={buildExportUrl()} className="btn-success whitespace-nowrap" download>
-                  Exporter CSV
-                </a>
-              </div>
-            </div>
-
-            {/* Row 2: filters */}
-            <div className="flex flex-wrap gap-2 items-center">
-              <select
-                value={filterProject}
-                onChange={(e) => setFilterProject(e.target.value)}
-                className="input w-auto max-w-[160px]"
-              >
-                <option value="">Tous les projets</option>
-                {projectOptions.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="input w-auto"
-              >
-                <option value="">Tous les statuts</option>
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
-                ))}
-              </select>
-
-              <div className="flex items-center gap-1 text-sm text-slate-500">
-                <span className="shrink-0">Du</span>
-                <input
-                  type="date"
-                  value={filterDateFrom}
-                  onChange={(e) => setFilterDateFrom(e.target.value)}
-                  className="input w-auto"
-                />
-                <span className="shrink-0">au</span>
-                <input
-                  type="date"
-                  value={filterDateTo}
-                  onChange={(e) => setFilterDateTo(e.target.value)}
-                  className="input w-auto"
-                />
-              </div>
-
-              {(filterProject || filterStatus || filterDateFrom || filterDateTo || search) && (
-                <button
-                  onClick={() => {
-                    setSearch(''); setFilterProject(''); setFilterStatus('')
-                    setFilterDateFrom(''); setFilterDateTo('')
-                  }}
-                  className="btn-secondary text-xs"
-                >
-                  ✕ Réinitialiser
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Stats */}
-          {!loading && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <StatCard label="Échantillons (total)" value={pagination.count} color="text-blue-700" />
-              <StatCard label="Projets distincts" value={new Set(samples.map(s => s.project)).size} color="text-slate-700" note="page courante" />
-              <StatCard label="Quantité totale" value={samples.reduce((n, s) => n + (s.quantity ?? 1), 0)} color="text-emerald-700" note="page courante" />
-              <StatCard label="Connecteurs complets" value={samples.filter(s => s.connector_fill === 'full').length} color="text-orange-600" note="page courante" />
-            </div>
-          )}
-
-          {/* Table */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
-              <p className="text-sm text-slate-500">
-                {pagination.count} échantillon{pagination.count !== 1 ? 's' : ''}
-              </p>
-              <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                ✓ Projets approuvés uniquement
-              </span>
-            </div>
-
-            <SampleTable
-              samples={samples}
-              loading={loading}
-              onRowClick={openDetail}
-            />
-
-            {totalPages > 1 && (
-              <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between">
-                <p className="text-sm text-slate-500">
-                  Page {pagination.page} sur {totalPages}
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => fetchSamples(pagination.page - 1)}
-                    disabled={!pagination.previous}
-                    className="btn-secondary disabled:opacity-40"
-                  >
-                    ← Préc.
-                  </button>
-                  <button
-                    onClick={() => fetchSamples(pagination.page + 1)}
-                    disabled={!pagination.next}
-                    className="btn-secondary disabled:opacity-40"
-                  >
-                    Suiv. →
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </main>
-      )}
+      {page === 'dashboard'  && <SampleListPage />}
     </>
   )
 
@@ -1125,7 +999,13 @@ export default function App() {
       <div className="flex flex-col h-screen bg-slate-50">
         {/* ── Sticky header: logo/logout row + section tab bar ── */}
         <header className="flex-shrink-0 bg-white border-b border-slate-200 shadow-sm z-30">
-          <AppHeader user={user} onLogout={handleLogout} section={section} />
+          <AppHeader
+            user={user}
+            onLogout={handleLogout}
+            section={section}
+            showDrawer={true}
+            onDrawerToggle={() => setDrawerOpen(o => !o)}
+          />
           {section === 'production' && (
             <ProductionTabBar page={page} onPageChange={changePage} />
           )}
@@ -1144,8 +1024,22 @@ export default function App() {
         </header>
 
         {/* ── Sidebar + scrollable main content ── */}
-        <div className="flex flex-1 overflow-hidden">
-          <Sidebar section={section} onSectionChange={changeSection} />
+        <div className="flex flex-1 overflow-hidden relative">
+          {/* Mobile drawer backdrop */}
+          {drawerOpen && (
+            <div
+              className="fixed inset-0 z-20 bg-black/40 sm:hidden"
+              onClick={() => setDrawerOpen(false)}
+            />
+          )}
+          {/* Mobile sidebar drawer */}
+          <div className={`fixed left-0 top-0 bottom-0 z-30 sm:hidden transition-transform duration-300 ease-in-out ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <Sidebar section={section} onSectionChange={(s) => { changeSection(s); setDrawerOpen(false) }} />
+          </div>
+          {/* Permanent sidebar (sm+) */}
+          <div className="hidden sm:block flex-shrink-0">
+            <Sidebar section={section} onSectionChange={changeSection} />
+          </div>
 
           <main className="flex-1 overflow-y-auto">
             {section === 'production' && productionContent}
@@ -1176,8 +1070,6 @@ export default function App() {
             )}
           </main>
         </div>
-
-        {modals}
       </div>
     )
   }
@@ -1226,12 +1118,82 @@ export default function App() {
     )
   }
 
+  // ── MANAGER ROLES — module page + procurement tab ────────────────────────
+  const MANAGER_MODULE_PAGE = {
+    production_manager:   <>{productionContent}</>,
+    storage_manager:      <StoragePage tab={storageTab} currentUser={user} />,
+    hr_manager:           <HRPage tab={hrTab} currentUser={user} />,
+    logistics_manager:    <LogisticsPage tab={logisticsTab} currentUser={user} onTabChange={changeLogisticsTab} />,
+    installation_manager: <InstallationPage installationTab={installationTab} onTabChange={changeInstallationTab} currentUser={user} />,
+    accounting_manager:   <AccountingPage tab={accountingTab} currentUser={user} />,
+    sales_manager:        <SalesPage currentUser={user} />,
+  }
+
+  if (MANAGER_MODULE_PAGE[user.role] !== undefined) {
+    const SECTION_LABEL = {
+      production_manager:   'Production',
+      storage_manager:      'Stockage',
+      hr_manager:           'RH',
+      logistics_manager:    'Logistique',
+      installation_manager: 'Installation',
+      accounting_manager:   'Comptabilité',
+      sales_manager:        'Ventes',
+    }
+    return (
+      <div className="flex flex-col h-screen bg-slate-50">
+        <header className="flex-shrink-0 bg-white border-b border-slate-200 shadow-sm z-10">
+          <AppHeader user={user} onLogout={handleLogout} section={user.role.replace('_manager', '')} />
+          {/* Manager tab bar */}
+          <nav className="flex border-t border-slate-100 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+            {[
+              { id: 'module',      label: SECTION_LABEL[user.role] },
+              ...(user.role === 'production_manager' ? [{ id: 'flow', label: '📊 Flux de Production' }] : []),
+              { id: 'procurement', label: '🛒 Demandes d\'achat' },
+            ].map(t => (
+              <button
+                key={t.id}
+                onClick={() => setManagerTab(t.id)}
+                className={`flex-shrink-0 px-4 sm:px-5 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  managerTab === t.id
+                    ? 'border-blue-600 text-blue-600 bg-blue-50/40'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </nav>
+          {/* Module sub-tab bar — gives the responsable full navigation within their module */}
+          {managerTab === 'module' && user.role === 'production_manager' && (
+            <ProductionTabBar page={page} onPageChange={changePage} />
+          )}
+          {managerTab === 'module' && user.role === 'storage_manager' && (
+            <StorageTabBar storageTab={storageTab} onTabChange={changeStorageTab} />
+          )}
+          {managerTab === 'module' && user.role === 'accounting_manager' && (
+            <AccountingTabBar accountingTab={accountingTab} onTabChange={changeAccountingTab} />
+          )}
+          {managerTab === 'module' && user.role === 'hr_manager' && (
+            <HrTabBar hrTab={hrTab} onTabChange={changeHrTab} />
+          )}
+          {managerTab === 'module' && user.role === 'logistics_manager' && (
+            <LogisticsTabBar logisticsTab={logisticsTab} onTabChange={changeLogisticsTab} />
+          )}
+        </header>
+        <main className="flex-1 overflow-y-auto">
+          {managerTab === 'module'      && MANAGER_MODULE_PAGE[user.role]}
+          {managerTab === 'flow'        && <ProductionFlowPage currentUser={user} />}
+          {managerTab === 'procurement' && <ProcurementPage currentUser={user} />}
+        </main>
+      </div>
+    )
+  }
+
   // ── PRODUCTION ROLES (designer / programmer / cnc / assembly / quality) ───
   return (
     <div className="min-h-screen bg-slate-50">
       <Topbar user={user} onLogout={handleLogout} page={page} onPageChange={changePage} />
       {productionContent}
-      {modals}
     </div>
   )
 }
