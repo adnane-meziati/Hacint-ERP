@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createProjectSample, deleteProjectSample, getProjectSamples } from '../../../api/client'
+import TechStudyImportModal from '../TechStudyImportModal'
 
 const FILL_OPTIONS = [
   { value: 'full',    label: 'Complet (toutes broches)' },
@@ -61,10 +62,11 @@ function AddSampleForm({ projectName, onAdded, onCancel }) {
   )
 }
 
-export default function SamplesStep({ projectName, isApproved }) {
-  const [samples, setSamples] = useState([])
-  const [loading, setLoading] = useState(true)
+export default function SamplesStep({ projectName, isApproved, isAdmin }) {
+  const [samples, setSamples]   = useState([])
+  const [loading, setLoading]   = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [showImport, setShowImport] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -89,9 +91,19 @@ export default function SamplesStep({ projectName, isApproved }) {
           Échantillons du projet <span className="ml-2 text-slate-400 font-normal">({samples.length})</span>
         </h3>
         {!isApproved && (
-          <button className="btn-primary text-xs px-2 py-1" onClick={() => setShowForm(v => !v)}>
-            {showForm ? 'Annuler' : '+ Ajouter'}
-          </button>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <button className="btn-success text-xs px-2 py-1 flex items-center gap-1" onClick={() => setShowImport(true)}>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 9l5-5 5 5M12 4v12" />
+                </svg>
+                Importer
+              </button>
+            )}
+            <button className="btn-primary text-xs px-2 py-1" onClick={() => setShowForm(v => !v)}>
+              {showForm ? 'Annuler' : '+ Ajouter'}
+            </button>
+          </div>
         )}
       </div>
 
@@ -154,6 +166,14 @@ export default function SamplesStep({ projectName, isApproved }) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {showImport && (
+        <TechStudyImportModal
+          defaultProjectName={projectName}
+          onClose={() => setShowImport(false)}
+          onImported={src => { if (src === 'excel') { setShowImport(false); load() } }}
+        />
       )}
     </div>
   )

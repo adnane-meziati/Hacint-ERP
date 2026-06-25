@@ -7,7 +7,7 @@ const CLIENT_OPTIONS = ['Aptiv', 'Yazaki', 'Lear', 'Renault', 'Stellantis', 'Sum
 function isExcelFile(name) { return /\.(xlsm|xlsx)$/i.test(name) }
 function isCsvFile(name)   { return /\.csv$/i.test(name) }
 
-export default function TechStudyImportModal({ onClose, onImported }) {
+export default function TechStudyImportModal({ onClose, onImported, defaultProjectName }) {
   const [file, setFile]     = useState(null)
   const [mode, setMode]     = useState(null)   // null | 'excel' | 'csv'
   const [dragging, setDragging] = useState(false)
@@ -15,7 +15,7 @@ export default function TechStudyImportModal({ onClose, onImported }) {
   const fileRef = useRef(null)
 
   // Excel state
-  const [projectName, setProjectName] = useState('')
+  const [projectName, setProjectName] = useState(defaultProjectName || '')
   const [client, setClient]           = useState(CLIENT_OPTIONS[0])
   const [comment, setComment]         = useState('')
   const [preview, setPreview]         = useState(null)
@@ -115,8 +115,10 @@ export default function TechStudyImportModal({ onClose, onImported }) {
               <>
                 <div className="grid sm:grid-cols-3 gap-3">
                   <div><label className="label">Nom du projet</label>
-                    <input className="input" value={projectName}
-                      onChange={e => { setProjectName(e.target.value); setPreview(null) }} placeholder="PRJ-2026-01" /></div>
+                    <input className={`input ${defaultProjectName ? 'bg-slate-50 text-slate-500' : ''}`}
+                      value={projectName} readOnly={!!defaultProjectName}
+                      onChange={e => { if (!defaultProjectName) { setProjectName(e.target.value); setPreview(null) } }}
+                      placeholder="PRJ-2026-01" /></div>
                   <div><label className="label">Client</label>
                     <select className="input" value={client} onChange={e => setClient(e.target.value)}>
                       {CLIENT_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}

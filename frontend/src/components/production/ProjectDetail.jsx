@@ -87,7 +87,7 @@ export default function ProjectDetail({ project: initialProject, currentUser, on
 
       {/* Step content */}
       {activeStep === 0 && (
-        <SamplesStep projectName={project.project_name} isApproved={finallyApproved} />
+        <SamplesStep projectName={project.project_name} isApproved={finallyApproved} isAdmin={isAdmin} />
       )}
 
       {activeStep === 1 && (

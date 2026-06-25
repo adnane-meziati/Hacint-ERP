@@ -23,6 +23,8 @@ import SalesPage from './components/sales/SalesPage'
 import InstallationPage from './components/installation/InstallationPage'
 import ProcurementPage from './components/procurement/ProcurementPage'
 import ProductionFlowPage from './components/production/ProductionFlowPage'
+import FloatingLanguageToggle from './components/common/FloatingLanguageToggle'
+import Jimide4030Page from './components/production/Jimide4030Page'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -107,14 +109,11 @@ const SECTION_CHIPS = {
 }
 
 function AppHeader({ user, onLogout, section, showDrawer = false, onDrawerToggle = () => {} }) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
+  const displayName = user?.firstName
+    ? `${user.firstName} ${user.lastName}`.trim()
+    : user?.username
   const chip = section ? SECTION_CHIPS[section] : null
-  const currentLang = i18n.language
-  const toggleLanguage = () => {
-    const newLang = currentLang === 'fr' ? 'en' : 'fr'
-    i18n.changeLanguage(newLang)
-    localStorage.setItem('language', newLang)
-  }
 
   return (
     <div className="h-12 flex items-center justify-between px-3 sm:px-6">
@@ -139,15 +138,13 @@ function AppHeader({ user, onLogout, section, showDrawer = false, onDrawerToggle
         )}
       </div>
 
-      {/* User + language toggle + logout */}
-      <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-        <button
-          onClick={toggleLanguage}
-          className="text-xs sm:text-sm text-slate-500 hover:text-slate-700 transition-colors px-1.5 py-0.5 rounded border border-slate-200"
-          aria-label={t('app.toggleLanguage')}
-        >
-          {currentLang === 'fr' ? 'EN' : 'FR'}
-        </button>
+      {/* User name + logout (language toggle is now floating top-right) */}
+      <div className="mr-[5.25rem] flex items-center gap-2 sm:mr-[6rem] sm:gap-4 shrink-0">
+        {displayName && (
+          <span className="hidden xs:inline text-xs sm:text-sm text-slate-500 max-w-[100px] sm:max-w-[140px] truncate">
+            {displayName}
+          </span>
+        )}
         <button
           onClick={onLogout}
           className="text-xs sm:text-sm text-slate-500 hover:text-red-600 transition-colors font-medium whitespace-nowrap"
@@ -155,6 +152,21 @@ function AppHeader({ user, onLogout, section, showDrawer = false, onDrawerToggle
           {t('app.logout')}
         </button>
       </div>
+    </div>
+  )
+}
+
+function AccessDeniedPage({ user, onLogout }) {
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md rounded-xl border border-amber-200 bg-white p-6 text-center shadow-sm">
+        <h1 className="text-lg font-semibold text-slate-900">Accès non configuré</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          Le compte « {user.username} » n&apos;a pas de rôle attribué. Contactez l&apos;administrateur.
+        </p>
+        <button type="button" className="btn-secondary mt-5" onClick={onLogout}>Déconnexion</button>
+      </div>
+      <FloatingLanguageToggle />
     </div>
   )
 }
@@ -171,6 +183,7 @@ function ProductionTabBar({ page, onPageChange }) {
     { id: 'cnc',             label: t('app.tabs.cnc') },
     { id: 'assembly',        label: t('app.tabs.assembly') },
     { id: 'quality',         label: t('app.tabs.quality') },
+    { id: 'jimide',          label: 'JIMIDE-4030' },
   ]
   return (
     <nav
@@ -969,6 +982,10 @@ export default function App() {
     )
   }
 
+  if (user.role === 'unassigned') {
+    return <AccessDeniedPage user={user} onLogout={handleLogout} />
+  }
+
   if (user.must_change_password) {
     return (
       <ChangePasswordPage
@@ -990,6 +1007,7 @@ export default function App() {
       {page === 'quality'    && <QualityPage currentUser={user} />}
       {page === 'users'      && <AdminUsersPage currentUser={user} />}
       {page === 'dashboard'  && <SampleListPage />}
+      {page === 'jimide'     && <Jimide4030Page />}
     </>
   )
 
@@ -1070,6 +1088,7 @@ export default function App() {
             )}
           </main>
         </div>
+        <FloatingLanguageToggle />
       </div>
     )
   }
@@ -1084,6 +1103,7 @@ export default function App() {
         <main className="flex-1 overflow-y-auto">
           <SalesPage currentUser={user} />
         </main>
+        <FloatingLanguageToggle />
       </div>
     )
   }
@@ -1099,6 +1119,7 @@ export default function App() {
         <main className="flex-1 overflow-y-auto">
           <StoragePage tab={storageTab} currentUser={user} />
         </main>
+        <FloatingLanguageToggle />
       </div>
     )
   }
@@ -1114,6 +1135,7 @@ export default function App() {
         <main className="flex-1 overflow-y-auto">
           <AccountingPage tab={accountingTab} currentUser={user} />
         </main>
+        <FloatingLanguageToggle />
       </div>
     )
   }
@@ -1185,6 +1207,7 @@ export default function App() {
           {managerTab === 'flow'        && <ProductionFlowPage currentUser={user} />}
           {managerTab === 'procurement' && <ProcurementPage currentUser={user} />}
         </main>
+        <FloatingLanguageToggle />
       </div>
     )
   }
@@ -1194,6 +1217,7 @@ export default function App() {
     <div className="min-h-screen bg-slate-50">
       <Topbar user={user} onLogout={handleLogout} page={page} onPageChange={changePage} />
       {productionContent}
+      <FloatingLanguageToggle />
     </div>
   )
 }
