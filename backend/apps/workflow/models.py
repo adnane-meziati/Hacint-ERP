@@ -27,6 +27,12 @@ class ProjectStatus(models.TextChoices):
     CANCELLED = "cancelled", "Annulé"
 
 
+class ValidationStatus(models.TextChoices):
+    PENDING = "pending", "En attente"
+    APPROVED = "approved", "Validé"
+    REJECTED = "rejected", "Rejeté"
+
+
 class WorkflowOrderStatus(models.TextChoices):
     PENDING = "pending", "En attente"
     IN_PROGRESS = "in_progress", "En cours"
@@ -49,6 +55,12 @@ class Project(TimeStampedModel):
         max_length=16,
         choices=ProjectStatus.choices,
         default=ProjectStatus.ACTIVE,
+        db_index=True,
+    )
+    validation_status = models.CharField(
+        max_length=16,
+        choices=ValidationStatus.choices,
+        default=ValidationStatus.PENDING,
         db_index=True,
     )
     deleted_at = models.DateTimeField(null=True, blank=True)
@@ -157,3 +169,71 @@ class ApnAttachment(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.original_name} ({self.attachment_type})"
+
+
+# ---------------------------------------------------------------------------
+# Technical Study Validation
+# ---------------------------------------------------------------------------
+
+class MatrixSample(TimeStampedModel):
+    """Reference matrix — the master/expected list of samples all projects must match."""
+    reference = models.CharField(max_length=128, unique=True)
+    designation = models.CharField(max_length=255, blank=True)
+    quantity = models.PositiveIntegerField(default=1)
+    sample_type = models.CharField(max_length=64, blank=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["reference"]
+
+    def __str__(self) -> str:
+        return f"{self.reference} (x{self.quantity})"
+
+
+class ProjectSample(TimeStampedModel):
+    """Sample declared on a project — compared against the reference matrix."""
+    project = models.ForeignKey(Project, related_name="samples", on_delete=models.CASCADE)
+    reference = models.CharField(max_length=128)
+    designation = models.CharField(max_length=255, blank=True)
+    quantity = models.PositiveIntegerField(default=1)
+    sample_type = models.CharField(max_length=64, blank=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["project_id", "reference"]
+        unique_together = [("project", "reference")]
+
+    def __str__(self) -> str:
+        return f"{self.reference} @ {self.project_id}"
+
+
+class ProjectValidation(TimeStampedModel):
+    """Persisted validation result and approval record for a project."""
+    project = models.OneToOneField(Project, related_name="validation", on_delete=models.CASCADE)
+    validation_status = models.CharField(
+        max_length=16,
+        choices=ValidationStatus.choices,
+        default=ValidationStatus.PENDING,
+        db_index=True,
+    )
+    validated_at = models.DateTimeField(null=True, blank=True)
+    validated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    result = models.JSONField(default=dict)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"Validation {self.project_id}: {self.validation_status}"

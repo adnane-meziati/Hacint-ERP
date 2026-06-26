@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Apn, ApnAttachment, ApnStageHistory, Project, WorkflowOrder
+from .models import Apn, ApnAttachment, ApnStageHistory, MatrixSample, Project, ProjectSample, ProjectValidation, WorkflowOrder
 
 
 # ---------------------------------------------------------------------------
@@ -124,30 +124,73 @@ class WorkflowOrderCreateSerializer(serializers.ModelSerializer):
 # Project
 # ---------------------------------------------------------------------------
 
-class ProjectListSerializer(serializers.ModelSerializer):
-    order_count = serializers.IntegerField(source="orders.count", read_only=True)
-
-    class Meta:
-        model = Project
-        fields = ["id", "code", "name", "description", "status", "order_count", "created_at"]
-        read_only_fields = ["id", "order_count", "created_at"]
-
-
-class ProjectDetailSerializer(serializers.ModelSerializer):
-    orders = WorkflowOrderListSerializer(many=True, read_only=True)
-    order_count = serializers.IntegerField(source="orders.count", read_only=True)
-
-    class Meta:
-        model = Project
-        fields = [
-            "id", "code", "name", "description", "status",
-            "order_count", "orders", "created_at", "updated_at",
-        ]
-        read_only_fields = ["id", "order_count", "orders", "created_at", "updated_at"]
-
-
 class ProjectCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = ["id", "code", "name", "description", "status"]
         read_only_fields = ["id"]
+
+
+# ---------------------------------------------------------------------------
+# Technical Study Validation
+# ---------------------------------------------------------------------------
+
+class MatrixSampleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MatrixSample
+        fields = ["id", "reference", "designation", "quantity", "sample_type", "notes", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class ProjectSampleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProjectSample
+        fields = ["id", "project", "reference", "designation", "quantity", "sample_type", "notes", "created_at"]
+        read_only_fields = ["id", "project", "created_at"]
+
+
+class ProjectValidationSerializer(serializers.ModelSerializer):
+    validated_by_username = serializers.CharField(source="validated_by.username", read_only=True, default=None)
+    approved_by_username = serializers.CharField(source="approved_by.username", read_only=True, default=None)
+
+    class Meta:
+        model = ProjectValidation
+        fields = [
+            "id", "validation_status",
+            "validated_at", "validated_by_username",
+            "approved_at", "approved_by_username",
+            "result", "created_at", "updated_at",
+        ]
+        read_only_fields = fields
+
+
+class ProjectListSerializer(serializers.ModelSerializer):
+    order_count = serializers.IntegerField(source="orders.count", read_only=True)
+    sample_count = serializers.IntegerField(source="samples.count", read_only=True)
+
+    class Meta:
+        model = Project
+        fields = ["id", "code", "name", "description", "status", "validation_status", "order_count", "sample_count", "created_at"]
+        read_only_fields = ["id", "order_count", "sample_count", "created_at"]
+
+
+class ProjectDetailSerializer(serializers.ModelSerializer):
+    orders = WorkflowOrderListSerializer(many=True, read_only=True)
+    order_count = serializers.IntegerField(source="orders.count", read_only=True)
+    samples = ProjectSampleSerializer(many=True, read_only=True)
+    validation = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Project
+        fields = [
+            "id", "code", "name", "description", "status", "validation_status",
+            "order_count", "orders", "samples", "validation",
+            "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "order_count", "orders", "samples", "validation", "created_at", "updated_at"]
+
+    def get_validation(self, obj: "Project"):  # type: ignore[override]
+        try:
+            return ProjectValidationSerializer(obj.validation, context=self.context).data
+        except ProjectValidation.DoesNotExist:
+            return None

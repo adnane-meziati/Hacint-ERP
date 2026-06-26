@@ -2,12 +2,18 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import {
   workflowApi,
-  type WfProject,
-  type WfProjectDetail,
-  type WfOrder,
-  type WfOrderDetail,
+  type CreateMatrixSamplePayload,
+  type CreateProjectSamplePayload,
+  type MatrixSample,
+  type ProjectSample,
+  type ValidationRunResult,
   type WfApn,
   type WfApnDetail,
+  type WfOrder,
+  type WfOrderDetail,
+  type WfProject,
+  type WfProjectDetail,
+  type WfValidation,
   type CreateProjectPayload,
   type CreateOrderPayload,
   type CreateApnPayload,
@@ -211,6 +217,124 @@ export const useWorkflowStore = defineStore(
       currentApn.value = null
     }
 
+    // --- Technical Study Validation ---
+
+    const matrix = ref<MatrixSample[]>([])
+    const validationResult = ref<ValidationRunResult | null>(null)
+
+    async function fetchMatrix() {
+      loading.value = true
+      error.value = null
+      try {
+        matrix.value = await workflowApi.listMatrix()
+      } catch (e: any) {
+        setError(e, 'Failed to load matrix')
+      } finally {
+        loading.value = false
+      }
+    }
+
+    async function createMatrixSample(payload: CreateMatrixSamplePayload): Promise<MatrixSample | null> {
+      loading.value = true
+      error.value = null
+      try {
+        const sample = await workflowApi.createMatrixSample(payload)
+        matrix.value.push(sample)
+        matrix.value.sort((a, b) => a.reference.localeCompare(b.reference))
+        return sample
+      } catch (e: any) {
+        setError(e, 'Failed to create matrix entry')
+        return null
+      } finally {
+        loading.value = false
+      }
+    }
+
+    async function deleteMatrixSample(id: string): Promise<boolean> {
+      loading.value = true
+      error.value = null
+      try {
+        await workflowApi.deleteMatrixSample(id)
+        matrix.value = matrix.value.filter(s => s.id !== id)
+        return true
+      } catch (e: any) {
+        setError(e, 'Failed to delete matrix entry')
+        return false
+      } finally {
+        loading.value = false
+      }
+    }
+
+    async function createProjectSample(projectId: string, payload: CreateProjectSamplePayload): Promise<ProjectSample | null> {
+      loading.value = true
+      error.value = null
+      try {
+        const sample = await workflowApi.createProjectSample(projectId, payload)
+        if (currentProject.value?.id === projectId) {
+          currentProject.value.samples = [...(currentProject.value.samples ?? []), sample]
+        }
+        return sample
+      } catch (e: any) {
+        setError(e, 'Failed to add sample')
+        return null
+      } finally {
+        loading.value = false
+      }
+    }
+
+    async function deleteProjectSample(id: string): Promise<boolean> {
+      loading.value = true
+      error.value = null
+      try {
+        await workflowApi.deleteProjectSample(id)
+        if (currentProject.value) {
+          currentProject.value.samples = currentProject.value.samples.filter(s => s.id !== id)
+        }
+        return true
+      } catch (e: any) {
+        setError(e, 'Failed to delete sample')
+        return false
+      } finally {
+        loading.value = false
+      }
+    }
+
+    async function validateProject(projectId: string): Promise<ValidationRunResult | null> {
+      loading.value = true
+      error.value = null
+      try {
+        const result = await workflowApi.validateProject(projectId)
+        validationResult.value = result
+        if (currentProject.value?.id === projectId) {
+          currentProject.value.validation_status = result.validation_status
+          currentProject.value.validation = result.validation
+        }
+        return result
+      } catch (e: any) {
+        setError(e, 'Failed to run validation')
+        return null
+      } finally {
+        loading.value = false
+      }
+    }
+
+    async function approveProject(projectId: string): Promise<WfValidation | null> {
+      loading.value = true
+      error.value = null
+      try {
+        const validation = await workflowApi.approveProject(projectId)
+        if (currentProject.value?.id === projectId) {
+          currentProject.value.validation = validation
+        }
+        return validation
+      } catch (e: any) {
+        setError(e, 'Failed to approve project')
+        return null
+      } finally {
+        loading.value = false
+      }
+    }
+
     return {
       projects,
       currentProject,
@@ -230,6 +354,16 @@ export const useWorkflowStore = defineStore(
       uploadAttachment,
       deleteAttachment,
       clearCurrent,
+      // Technical Study Validation
+      matrix,
+      validationResult,
+      fetchMatrix,
+      createMatrixSample,
+      deleteMatrixSample,
+      createProjectSample,
+      deleteProjectSample,
+      validateProject,
+      approveProject,
     }
   },
   { persist: true }

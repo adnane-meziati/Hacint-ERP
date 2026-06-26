@@ -82,6 +82,17 @@ const router = createRouter({
           component: () => import('@/views/SettingsView.vue'),
           meta: { role: 'admin' },
         },
+        // Technical Study Validation
+        {
+          path: 'technical-study',
+          name: 'technical-study',
+          component: () => import('@/views/TechnicalStudyView.vue'),
+        },
+        {
+          path: 'technical-study/:id',
+          name: 'technical-study-project',
+          component: () => import('@/views/TechnicalStudyProjectView.vue'),
+        },
         // Workflow module
         {
           path: 'workflow',

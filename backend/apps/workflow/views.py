@@ -1,20 +1,28 @@
+from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.parsers import MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from common.permissions import IsPlannerOrAbove, IsStageWorker
+from common.permissions import IsAdmin, IsPlannerOrAbove, IsStageWorker
 
-from .models import Apn, ApnAttachment, ApnStageHistory, AttachmentType, Project, WorkflowOrder, WorkflowOrderStatus, WorkflowStage
+from .models import (
+    Apn, ApnAttachment, ApnStageHistory, AttachmentType,
+    MatrixSample, Project, ProjectSample, ProjectValidation, ValidationStatus,
+    WorkflowOrder, WorkflowOrderStatus, WorkflowStage,
+)
 from .serializers import (
     ApnAttachmentSerializer,
     ApnCreateSerializer,
     ApnDetailSerializer,
     ApnListSerializer,
+    MatrixSampleSerializer,
     ProjectCreateSerializer,
     ProjectDetailSerializer,
     ProjectListSerializer,
+    ProjectSampleSerializer,
+    ProjectValidationSerializer,
     WorkflowOrderCreateSerializer,
     WorkflowOrderDetailSerializer,
     WorkflowOrderListSerializer,
@@ -33,7 +41,7 @@ class ProjectListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):  # type: ignore[override]
         return (
             Project.objects.filter(deleted_at__isnull=True)
-            .prefetch_related("orders")
+            .prefetch_related("orders", "samples")
         )
 
     def get_serializer_class(self):  # type: ignore[override]
@@ -52,7 +60,9 @@ class ProjectDetailView(generics.RetrieveUpdateAPIView):
 
     def get_queryset(self):  # type: ignore[override]
         return Project.objects.filter(deleted_at__isnull=True).prefetch_related(
-            "orders__apns"
+            "orders__apns",
+            "samples",
+            "validation",
         )
 
     def get_serializer_class(self):  # type: ignore[override]
@@ -320,4 +330,210 @@ class WorkflowQueueView(generics.ListAPIView):
             .select_related("work_order__project", "assigned_user")
             .prefetch_related("history__transitioned_by", "attachments")
             .order_by("priority", "work_order__project__code", "apn_code")
+        )
+
+
+# ---------------------------------------------------------------------------
+# Technical Study Validation — Reference Matrix
+# ---------------------------------------------------------------------------
+
+class MatrixSampleListCreateView(generics.ListCreateAPIView):
+    """GET /api/workflow/matrix/  — list all matrix entries
+    POST /api/workflow/matrix/   — create entry (admin only)
+    """
+
+    queryset = MatrixSample.objects.all()
+    serializer_class = MatrixSampleSerializer
+
+    def get_permissions(self):  # type: ignore[override]
+        if self.request.method == "POST":
+            return [IsAdmin()]
+        return [permissions.IsAuthenticated()]
+
+    def perform_create(self, serializer):  # type: ignore[override]
+        serializer.save(created_by=self.request.user)
+
+
+class MatrixSampleDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """GET/PATCH/DELETE /api/workflow/matrix/{id}/"""
+
+    queryset = MatrixSample.objects.all()
+    serializer_class = MatrixSampleSerializer
+
+    def get_permissions(self):  # type: ignore[override]
+        if self.request.method in ("GET", "HEAD", "OPTIONS"):
+            return [permissions.IsAuthenticated()]
+        return [IsAdmin()]
+
+    def perform_update(self, serializer):  # type: ignore[override]
+        serializer.save(updated_by=self.request.user)
+
+
+# ---------------------------------------------------------------------------
+# Technical Study Validation — Project Samples
+# ---------------------------------------------------------------------------
+
+class ProjectSampleListCreateView(generics.ListCreateAPIView):
+    """GET /api/workflow/projects/{pk}/samples/
+    POST /api/workflow/projects/{pk}/samples/
+    """
+
+    serializer_class = ProjectSampleSerializer
+
+    def get_queryset(self):  # type: ignore[override]
+        return ProjectSample.objects.filter(project_id=self.kwargs["pk"])
+
+    def get_permissions(self):  # type: ignore[override]
+        if self.request.method == "POST":
+            return [IsPlannerOrAbove()]
+        return [permissions.IsAuthenticated()]
+
+    def perform_create(self, serializer):  # type: ignore[override]
+        project = generics.get_object_or_404(Project, pk=self.kwargs["pk"], deleted_at__isnull=True)
+        serializer.save(project=project, created_by=self.request.user)
+
+
+class ProjectSampleDeleteView(generics.DestroyAPIView):
+    """DELETE /api/workflow/samples/{id}/"""
+
+    queryset = ProjectSample.objects.all()
+    permission_classes = [IsPlannerOrAbove]
+
+
+# ---------------------------------------------------------------------------
+# Technical Study Validation — Run validation
+# ---------------------------------------------------------------------------
+
+def _run_comparison(project: Project) -> dict:
+    """Compare project samples against the reference matrix. Returns structured result dict."""
+    matrix = {s.reference: s for s in MatrixSample.objects.all()}
+    declared = {s.reference: s for s in ProjectSample.objects.filter(project=project)}
+
+    matched, missing, mismatched, extra = [], [], [], []
+
+    for ref, ms in matrix.items():
+        ps = declared.get(ref)
+        if ps is None:
+            missing.append({
+                "reference": ref,
+                "designation": ms.designation,
+                "matrix_quantity": ms.quantity,
+                "matrix_type": ms.sample_type,
+                "project_quantity": None,
+                "project_type": None,
+                "status": "missing",
+            })
+        elif ps.quantity == ms.quantity and ps.sample_type == ms.sample_type:
+            matched.append({
+                "reference": ref,
+                "designation": ms.designation,
+                "matrix_quantity": ms.quantity,
+                "matrix_type": ms.sample_type,
+                "project_quantity": ps.quantity,
+                "project_type": ps.sample_type,
+                "status": "matched",
+            })
+        else:
+            mismatched.append({
+                "reference": ref,
+                "designation": ms.designation,
+                "matrix_quantity": ms.quantity,
+                "matrix_type": ms.sample_type,
+                "project_quantity": ps.quantity,
+                "project_type": ps.sample_type,
+                "status": "mismatched",
+            })
+
+    for ref, ps in declared.items():
+        if ref not in matrix:
+            extra.append({
+                "reference": ref,
+                "designation": ps.designation,
+                "matrix_quantity": None,
+                "matrix_type": None,
+                "project_quantity": ps.quantity,
+                "project_type": ps.sample_type,
+                "status": "extra",
+            })
+
+    result_status = ValidationStatus.APPROVED if not missing and not mismatched and not extra else ValidationStatus.REJECTED
+
+    return {
+        "validation_status": result_status,
+        "matched": matched,
+        "missing": missing,
+        "mismatched": mismatched,
+        "extra": extra,
+        "summary": {
+            "total_matrix": len(matrix),
+            "total_project": len(declared),
+            "matched": len(matched),
+            "missing": len(missing),
+            "mismatched": len(mismatched),
+            "extra": len(extra),
+        },
+    }
+
+
+class ProjectValidateView(APIView):
+    """POST /api/workflow/projects/{pk}/validate/
+    Runs the comparison and persists the validation result.
+    """
+
+    permission_classes = [IsPlannerOrAbove]
+
+    def post(self, request: Request, pk: str) -> Response:
+        project = generics.get_object_or_404(Project, pk=pk, deleted_at__isnull=True)
+
+        result = _run_comparison(project)
+        new_status = result["validation_status"]
+
+        validation, _ = ProjectValidation.objects.update_or_create(
+            project=project,
+            defaults={
+                "validation_status": new_status,
+                "validated_at": timezone.now(),
+                "validated_by": request.user,
+                "result": result,
+                "updated_by": request.user,
+                # Reset approval if re-validated and result changed
+                "approved_at": None,
+                "approved_by": None,
+            },
+        )
+
+        project.validation_status = new_status
+        project.updated_by = request.user
+        project.save(update_fields=["validation_status", "updated_at", "updated_by"])
+
+        return Response({
+            **result,
+            "validation": ProjectValidationSerializer(validation, context={"request": request}).data,
+        })
+
+
+class ProjectApproveView(APIView):
+    """POST /api/workflow/projects/{pk}/approve/
+    Officially approves the project. Only possible when validation passed 100%.
+    """
+
+    permission_classes = [IsPlannerOrAbove]
+
+    def post(self, request: Request, pk: str) -> Response:
+        project = generics.get_object_or_404(Project, pk=pk, deleted_at__isnull=True)
+
+        validation = getattr(project, "validation", None)
+        if not validation or validation.validation_status != ValidationStatus.APPROVED:
+            return Response(
+                {"detail": "Le projet doit être validé à 100% avant d'être approuvé."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        validation.approved_at = timezone.now()
+        validation.approved_by = request.user
+        validation.updated_by = request.user
+        validation.save(update_fields=["approved_at", "approved_by", "updated_at", "updated_by"])
+
+        return Response(
+            ProjectValidationSerializer(validation, context={"request": request}).data
         )

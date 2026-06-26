@@ -11,8 +11,98 @@ export type WorkflowStage =
 
 export type ApnPriority = 'low' | 'normal' | 'high' | 'urgent'
 export type ProjectStatus = 'active' | 'completed' | 'cancelled'
+export type ValidationStatus = 'pending' | 'approved' | 'rejected'
 export type WorkflowOrderStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled'
 export type AttachmentType = 'pdf' | 'g_code' | 'excel' | 'other'
+
+// --- Technical Study Validation ---
+
+export interface MatrixSample {
+  id: string
+  reference: string
+  designation: string
+  quantity: number
+  sample_type: string
+  notes: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ProjectSample {
+  id: string
+  project: string
+  reference: string
+  designation: string
+  quantity: number
+  sample_type: string
+  notes: string
+  created_at: string
+}
+
+export interface ValidationResultItem {
+  reference: string
+  designation: string
+  matrix_quantity: number | null
+  matrix_type: string | null
+  project_quantity: number | null
+  project_type: string | null
+  status: 'matched' | 'missing' | 'mismatched' | 'extra'
+}
+
+export interface ValidationSummary {
+  total_matrix: number
+  total_project: number
+  matched: number
+  missing: number
+  mismatched: number
+  extra: number
+}
+
+export interface WfValidation {
+  id: string
+  validation_status: ValidationStatus
+  validated_at: string | null
+  validated_by_username: string | null
+  approved_at: string | null
+  approved_by_username: string | null
+  result: {
+    matched: ValidationResultItem[]
+    missing: ValidationResultItem[]
+    mismatched: ValidationResultItem[]
+    extra: ValidationResultItem[]
+    summary: ValidationSummary
+  }
+  created_at: string
+  updated_at: string
+}
+
+export interface ValidationRunResult {
+  validation_status: ValidationStatus
+  matched: ValidationResultItem[]
+  missing: ValidationResultItem[]
+  mismatched: ValidationResultItem[]
+  extra: ValidationResultItem[]
+  summary: ValidationSummary
+  validation: WfValidation
+}
+
+export interface CreateMatrixSamplePayload {
+  reference: string
+  designation?: string
+  quantity?: number
+  sample_type?: string
+  notes?: string
+}
+
+export interface CreateProjectSamplePayload {
+  reference: string
+  designation?: string
+  quantity?: number
+  sample_type?: string
+  notes?: string
+}
+
+// ---
 
 export interface WfProject {
   id: string
@@ -20,12 +110,16 @@ export interface WfProject {
   name: string
   description: string
   status: ProjectStatus
+  validation_status: ValidationStatus
   order_count: number
+  sample_count: number
   created_at: string
 }
 
 export interface WfProjectDetail extends WfProject {
   orders: WfOrder[]
+  samples: ProjectSample[]
+  validation: WfValidation | null
   updated_at: string
 }
 
@@ -187,5 +281,40 @@ export const workflowApi = {
   // Queue
   queue(stage: WorkflowStage): Promise<WfApnDetail[]> {
     return apiClient.get(`/workflow/queue/${stage}/`).then(r => r.data)
+  },
+
+  // Technical Study Validation — Reference Matrix
+  listMatrix(): Promise<MatrixSample[]> {
+    return apiClient.get('/workflow/matrix/').then(r => r.data)
+  },
+
+  createMatrixSample(payload: CreateMatrixSamplePayload): Promise<MatrixSample> {
+    return apiClient.post('/workflow/matrix/', payload).then(r => r.data)
+  },
+
+  deleteMatrixSample(id: string): Promise<void> {
+    return apiClient.delete(`/workflow/matrix/${id}/`).then(() => undefined)
+  },
+
+  // Technical Study Validation — Project Samples
+  listProjectSamples(projectId: string): Promise<ProjectSample[]> {
+    return apiClient.get(`/workflow/projects/${projectId}/samples/`).then(r => r.data)
+  },
+
+  createProjectSample(projectId: string, payload: CreateProjectSamplePayload): Promise<ProjectSample> {
+    return apiClient.post(`/workflow/projects/${projectId}/samples/`, payload).then(r => r.data)
+  },
+
+  deleteProjectSample(id: string): Promise<void> {
+    return apiClient.delete(`/workflow/samples/${id}/`).then(() => undefined)
+  },
+
+  // Technical Study Validation — Validate & Approve
+  validateProject(projectId: string): Promise<ValidationRunResult> {
+    return apiClient.post(`/workflow/projects/${projectId}/validate/`).then(r => r.data)
+  },
+
+  approveProject(projectId: string): Promise<WfValidation> {
+    return apiClient.post(`/workflow/projects/${projectId}/approve/`).then(r => r.data)
   },
 }

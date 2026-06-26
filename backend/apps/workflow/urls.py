@@ -6,8 +6,14 @@ from .views import (
     ApnAttachmentDeleteView,
     ApnDetailView,
     ApnListCreateView,
+    MatrixSampleDetailView,
+    MatrixSampleListCreateView,
+    ProjectApproveView,
     ProjectDetailView,
     ProjectListCreateView,
+    ProjectSampleDeleteView,
+    ProjectSampleListCreateView,
+    ProjectValidateView,
     WorkflowOrderDetailView,
     WorkflowOrderListCreateView,
     WorkflowQueueView,
@@ -29,4 +35,13 @@ urlpatterns = [
     path("workflow/attachments/<uuid:pk>/", ApnAttachmentDeleteView.as_view(), name="wf-attach-delete"),
     # Queue
     path("workflow/queue/<str:stage>/", WorkflowQueueView.as_view(), name="wf-queue"),
+    # Technical Study Validation — Reference Matrix
+    path("workflow/matrix/", MatrixSampleListCreateView.as_view(), name="wf-matrix-list"),
+    path("workflow/matrix/<uuid:pk>/", MatrixSampleDetailView.as_view(), name="wf-matrix-detail"),
+    # Technical Study Validation — Project Samples
+    path("workflow/projects/<uuid:pk>/samples/", ProjectSampleListCreateView.as_view(), name="wf-project-samples"),
+    path("workflow/samples/<uuid:pk>/", ProjectSampleDeleteView.as_view(), name="wf-sample-delete"),
+    # Technical Study Validation — Validate & Approve
+    path("workflow/projects/<uuid:pk>/validate/", ProjectValidateView.as_view(), name="wf-project-validate"),
+    path("workflow/projects/<uuid:pk>/approve/", ProjectApproveView.as_view(), name="wf-project-approve"),
 ]

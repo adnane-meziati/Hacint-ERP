@@ -1,18 +1,24 @@
 {
-  "name": "MEGAINDUS ERP",
-  "short_name": "MEGAINDUS",
+  "short_name": "HACINT",
+  "name": "HACINT ERP v2",
   "description": "Suivi des commandes CNC — HACINT / APTIV TAC2 Tanger",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#1F3864",
-  "lang": "fr",
   "icons": [
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
     {
       "src": "/favicon.svg",
       "type": "image/svg+xml",
       "sizes": "any",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "start_url": "/",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "fr"
 }
