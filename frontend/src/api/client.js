@@ -1393,6 +1393,16 @@ export async function rejectLogisticsWarehouseTransfer(id) {
   return data
 }
 
+export async function transitLogisticsWarehouseTransfer(id) {
+  const { data } = await api.post(`/logistics/warehouse-transfers/${id}/transit/`)
+  return data
+}
+
+export async function receiveLogisticsWarehouseTransfer(id) {
+  const { data } = await api.post(`/logistics/warehouse-transfers/${id}/receive/`)
+  return data
+}
+
 // Logistics - Tasks
 export async function getLogisticsTasks(params = {}) {
   const { data } = await api.get('/logistics/tasks/', { params })

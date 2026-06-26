@@ -1,20 +1,18 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import hacintLogo from './assets/hacint-logo.png'
 import {
-  exportCsvUrl, fetchCsrf, getMe, getProjects, getSamples,
+  fetchCsrf, getMe,
   login, logout, verifyOtp, resendOtp, changePassword, forgotPassword, resetPassword,
 } from './api/client'
 import AdminUsersPage from './components/production/AdminUsersPage'
 import TechnicalStudyPage from './components/production/TechnicalStudyPage'
+import SampleListPage from './components/production/SampleListPage'
 import AssemblyPage from './components/production/AssemblyPage'
 import CncPage from './components/production/CncPage'
 import DesignerPage from './components/production/DesignerPage'
 import ProgrammerPage from './components/production/ProgrammerPage'
 import QualityPage from './components/production/QualityPage'
-import DetailModal from './components/production/DetailModal'
-import SampleTable from './components/production/SampleTable'
-import { StatCard } from './components/production/_shared'
 import Topbar from './components/production/Topbar'
 import Sidebar from './components/Sidebar'
 import StoragePage from './components/storage/StoragePage'
@@ -25,15 +23,10 @@ import SalesPage from './components/sales/SalesPage'
 import InstallationPage from './components/installation/InstallationPage'
 import ProcurementPage from './components/procurement/ProcurementPage'
 import ProductionFlowPage from './components/production/ProductionFlowPage'
+import FloatingLanguageToggle from './components/common/FloatingLanguageToggle'
+import Jimide4030Page from './components/production/Jimide4030Page'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const STATUS_OPTIONS = [
-  { value: 'pending',  label: 'En attente' },
-  { value: 'approved', label: 'Approuvé' },
-  { value: 'rejected', label: 'Rejeté' },
-  { value: 'archived', label: 'Archivé' },
-]
 
 // Admin production tabs (no storage — that's in the sidebar)
 const PROD_TABS_ADMIN = [
@@ -116,14 +109,11 @@ const SECTION_CHIPS = {
 }
 
 function AppHeader({ user, onLogout, section, showDrawer = false, onDrawerToggle = () => {} }) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
+  const displayName = user?.firstName
+    ? `${user.firstName} ${user.lastName}`.trim()
+    : user?.username
   const chip = section ? SECTION_CHIPS[section] : null
-  const currentLang = i18n.language
-  const toggleLanguage = () => {
-    const newLang = currentLang === 'fr' ? 'en' : 'fr'
-    i18n.changeLanguage(newLang)
-    localStorage.setItem('language', newLang)
-  }
 
   return (
     <div className="h-12 flex items-center justify-between px-3 sm:px-6">
@@ -148,15 +138,13 @@ function AppHeader({ user, onLogout, section, showDrawer = false, onDrawerToggle
         )}
       </div>
 
-      {/* User + language toggle + logout */}
-      <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-        <button
-          onClick={toggleLanguage}
-          className="text-xs sm:text-sm text-slate-500 hover:text-slate-700 transition-colors px-1.5 py-0.5 rounded border border-slate-200"
-          aria-label={t('app.toggleLanguage')}
-        >
-          {currentLang === 'fr' ? 'EN' : 'FR'}
-        </button>
+      {/* User name + logout (language toggle is now floating top-right) */}
+      <div className="mr-[5.25rem] flex items-center gap-2 sm:mr-[6rem] sm:gap-4 shrink-0">
+        {displayName && (
+          <span className="hidden xs:inline text-xs sm:text-sm text-slate-500 max-w-[100px] sm:max-w-[140px] truncate">
+            {displayName}
+          </span>
+        )}
         <button
           onClick={onLogout}
           className="text-xs sm:text-sm text-slate-500 hover:text-red-600 transition-colors font-medium whitespace-nowrap"
@@ -164,6 +152,21 @@ function AppHeader({ user, onLogout, section, showDrawer = false, onDrawerToggle
           {t('app.logout')}
         </button>
       </div>
+    </div>
+  )
+}
+
+function AccessDeniedPage({ user, onLogout }) {
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md rounded-xl border border-amber-200 bg-white p-6 text-center shadow-sm">
+        <h1 className="text-lg font-semibold text-slate-900">Accès non configuré</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          Le compte « {user.username} » n&apos;a pas de rôle attribué. Contactez l&apos;administrateur.
+        </p>
+        <button type="button" className="btn-secondary mt-5" onClick={onLogout}>Déconnexion</button>
+      </div>
+      <FloatingLanguageToggle />
     </div>
   )
 }
@@ -180,6 +183,7 @@ function ProductionTabBar({ page, onPageChange }) {
     { id: 'cnc',             label: t('app.tabs.cnc') },
     { id: 'assembly',        label: t('app.tabs.assembly') },
     { id: 'quality',         label: t('app.tabs.quality') },
+    { id: 'jimide',          label: 'JIMIDE-4030' },
   ]
   return (
     <nav
@@ -845,19 +849,6 @@ export default function App() {
 
   // ── Production section state ──────────────────────────────────────────────
   const [page, setPage] = useState(() => sessionStorage.getItem('hacint_page') || 'dashboard')
-  const [projectOptions, setProjectOptions] = useState([])
-  const [samples, setSamples] = useState([])
-  const [pagination, setPagination] = useState({ count: 0, next: null, previous: null, page: 1 })
-  const [loading, setLoading] = useState(false)
-  const [search, setSearch] = useState('')
-  const [filterProject, setFilterProject] = useState('')
-  const [filterStatus, setFilterStatus] = useState('')
-  const [filterDateFrom, setFilterDateFrom] = useState('')
-  const [filterDateTo, setFilterDateTo] = useState('')
-  const [modal, setModal] = useState(null)
-  const [selectedSample, setSelectedSample] = useState(null)
-  const searchDebounce = useRef(null)
-  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   // ── Admin sidebar + storage section state ─────────────────────────────────
@@ -961,62 +952,16 @@ export default function App() {
             : (landingPage(u.role) || 'dashboard')
           changePage(startPage)
         }
-        return getProjects()
       })
-      .then(setProjectOptions)
       .catch(() => {})
       .finally(() => setAuthChecked(true))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Debounce search ───────────────────────────────────────────────────────
-
-  useEffect(() => {
-    clearTimeout(searchDebounce.current)
-    searchDebounce.current = setTimeout(() => setDebouncedSearch(search), 300)
-    return () => clearTimeout(searchDebounce.current)
-  }, [search])
-
-  // ── Sample data fetching (production dashboard) ───────────────────────────
-
-  const fetchSamples = useCallback(async (p = 1) => {
-    setLoading(true)
-    try {
-      const params = { page: p, approved_only: 'true' }
-      if (debouncedSearch) params.search = debouncedSearch
-      if (filterProject)   params.project = filterProject
-      if (filterStatus)    params.status = filterStatus
-      if (filterDateFrom)  params.date_from = filterDateFrom
-      if (filterDateTo)    params.date_to = filterDateTo
-      const data = await getSamples(params)
-      setSamples(data.results)
-      setPagination({ count: data.count, next: data.next, previous: data.previous, page: p })
-    } finally {
-      setLoading(false)
-    }
-  }, [debouncedSearch, filterProject, filterStatus, filterDateFrom, filterDateTo])
-
-  useEffect(() => {
-    const isSalesRole = user?.role === 'sales_manager' || user?.role === 'sales_employee'
-    if (user && user.role !== 'storage' && user.role !== 'accounting' && !isSalesRole) fetchSamples(1)
-  }, [user, fetchSamples, page])
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
   async function handleLogout() {
     await logout()
     setUser(null)
-  }
-
-  function openDetail(s) { setSelectedSample(s); setModal('detail') }
-
-  function buildExportUrl() {
-    const params = {}
-    if (debouncedSearch) params.search = debouncedSearch
-    if (filterProject)   params.project = filterProject
-    if (filterStatus)    params.status = filterStatus
-    if (filterDateFrom)  params.date_from = filterDateFrom
-    if (filterDateTo)    params.date_to = filterDateTo
-    return exportCsvUrl(params)
   }
 
   // ── Early returns ─────────────────────────────────────────────────────────
@@ -1037,6 +982,10 @@ export default function App() {
     )
   }
 
+  if (user.role === 'unassigned') {
+    return <AccessDeniedPage user={user} onLogout={handleLogout} />
+  }
+
   if (user.must_change_password) {
     return (
       <ChangePasswordPage
@@ -1046,22 +995,7 @@ export default function App() {
     )
   }
 
-  // ── Shared modals (production section) ───────────────────────────────────
-
-  const modals = (
-    <>
-      {modal === 'detail' && selectedSample && (
-        <DetailModal
-          sampleId={selectedSample.id}
-          onClose={() => { setModal(null); setSelectedSample(null) }}
-        />
-      )}
-    </>
-  )
-
   // ── Production page content (shared by admin + production roles) ──────────
-
-  const totalPages = Math.ceil(pagination.count / 20)
 
   const productionContent = (
     <>
@@ -1072,135 +1006,8 @@ export default function App() {
       {page === 'assembly'   && <AssemblyPage currentUser={user} />}
       {page === 'quality'    && <QualityPage currentUser={user} />}
       {page === 'users'      && <AdminUsersPage currentUser={user} />}
-
-      {page === 'dashboard' && (
-        <main className="max-w-screen-xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-3 sm:space-y-4">
-          {/* Toolbar */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 sm:p-4 space-y-3">
-            {/* Row 1: search + actions */}
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Rechercher… (APN, #série, projet, placement, client)"
-                className="input flex-1 min-w-0"
-              />
-              <div className="flex flex-wrap gap-2 shrink-0">
-                <a href={buildExportUrl()} className="btn-success whitespace-nowrap" download>
-                  Exporter CSV
-                </a>
-              </div>
-            </div>
-
-            {/* Row 2: filters */}
-            <div className="flex flex-wrap gap-2 items-center">
-              <select
-                value={filterProject}
-                onChange={(e) => setFilterProject(e.target.value)}
-                className="input w-auto max-w-[160px]"
-              >
-                <option value="">Tous les projets</option>
-                {projectOptions.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="input w-auto"
-              >
-                <option value="">Tous les statuts</option>
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
-                ))}
-              </select>
-
-              <div className="flex items-center gap-1 text-sm text-slate-500">
-                <span className="shrink-0">Du</span>
-                <input
-                  type="date"
-                  value={filterDateFrom}
-                  onChange={(e) => setFilterDateFrom(e.target.value)}
-                  className="input w-auto"
-                />
-                <span className="shrink-0">au</span>
-                <input
-                  type="date"
-                  value={filterDateTo}
-                  onChange={(e) => setFilterDateTo(e.target.value)}
-                  className="input w-auto"
-                />
-              </div>
-
-              {(filterProject || filterStatus || filterDateFrom || filterDateTo || search) && (
-                <button
-                  onClick={() => {
-                    setSearch(''); setFilterProject(''); setFilterStatus('')
-                    setFilterDateFrom(''); setFilterDateTo('')
-                  }}
-                  className="btn-secondary text-xs"
-                >
-                  ✕ Réinitialiser
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Stats */}
-          {!loading && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <StatCard label="Échantillons (total)" value={pagination.count} color="text-blue-700" />
-              <StatCard label="Projets distincts" value={new Set(samples.map(s => s.project)).size} color="text-slate-700" note="page courante" />
-              <StatCard label="Quantité totale" value={samples.reduce((n, s) => n + (s.quantity ?? 1), 0)} color="text-emerald-700" note="page courante" />
-              <StatCard label="Connecteurs complets" value={samples.filter(s => s.connector_fill === 'full').length} color="text-orange-600" note="page courante" />
-            </div>
-          )}
-
-          {/* Table */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
-              <p className="text-sm text-slate-500">
-                {pagination.count} échantillon{pagination.count !== 1 ? 's' : ''}
-              </p>
-              <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                ✓ Projets approuvés uniquement
-              </span>
-            </div>
-
-            <SampleTable
-              samples={samples}
-              loading={loading}
-              onRowClick={openDetail}
-            />
-
-            {totalPages > 1 && (
-              <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between">
-                <p className="text-sm text-slate-500">
-                  Page {pagination.page} sur {totalPages}
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => fetchSamples(pagination.page - 1)}
-                    disabled={!pagination.previous}
-                    className="btn-secondary disabled:opacity-40"
-                  >
-                    ← Préc.
-                  </button>
-                  <button
-                    onClick={() => fetchSamples(pagination.page + 1)}
-                    disabled={!pagination.next}
-                    className="btn-secondary disabled:opacity-40"
-                  >
-                    Suiv. →
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </main>
-      )}
+      {page === 'dashboard'  && <SampleListPage />}
+      {page === 'jimide'     && <Jimide4030Page />}
     </>
   )
 
@@ -1281,8 +1088,7 @@ export default function App() {
             )}
           </main>
         </div>
-
-        {modals}
+        <FloatingLanguageToggle />
       </div>
     )
   }
@@ -1297,6 +1103,7 @@ export default function App() {
         <main className="flex-1 overflow-y-auto">
           <SalesPage currentUser={user} />
         </main>
+        <FloatingLanguageToggle />
       </div>
     )
   }
@@ -1312,6 +1119,7 @@ export default function App() {
         <main className="flex-1 overflow-y-auto">
           <StoragePage tab={storageTab} currentUser={user} />
         </main>
+        <FloatingLanguageToggle />
       </div>
     )
   }
@@ -1327,6 +1135,7 @@ export default function App() {
         <main className="flex-1 overflow-y-auto">
           <AccountingPage tab={accountingTab} currentUser={user} />
         </main>
+        <FloatingLanguageToggle />
       </div>
     )
   }
@@ -1398,6 +1207,7 @@ export default function App() {
           {managerTab === 'flow'        && <ProductionFlowPage currentUser={user} />}
           {managerTab === 'procurement' && <ProcurementPage currentUser={user} />}
         </main>
+        <FloatingLanguageToggle />
       </div>
     )
   }
@@ -1407,7 +1217,7 @@ export default function App() {
     <div className="min-h-screen bg-slate-50">
       <Topbar user={user} onLogout={handleLogout} page={page} onPageChange={changePage} />
       {productionContent}
-      {modals}
+      <FloatingLanguageToggle />
     </div>
   )
 }

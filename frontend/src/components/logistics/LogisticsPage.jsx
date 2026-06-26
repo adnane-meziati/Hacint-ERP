@@ -59,6 +59,8 @@ import {
   markAllLogisticsNotificationsRead,
   markLogisticsNotificationRead,
   rejectLogisticsWarehouseTransfer,
+  transitLogisticsWarehouseTransfer,
+  receiveLogisticsWarehouseTransfer,
   updateLogisticsDeliveryOrder,
   updateLogisticsDriver,
   updateLogisticsShipment,
@@ -2748,6 +2750,8 @@ function TransfersView({
   onDelete,
   onApprove,
   onReject,
+  onTransit,
+  onReceive,
   actingId,
 }) {
   if (loading) return <LoadingState />
@@ -2813,7 +2817,7 @@ function TransfersView({
                 <Td>{formatDateTime(transfer.created_at)}</Td>
                 <Td>
                   <div className="flex flex-wrap justify-end gap-1">
-                    {transfer.status === 'pending' && (
+                    {transfer.status === 'pending_approval' && (
                       <>
                         <button
                           type="button"
@@ -2832,6 +2836,26 @@ function TransfersView({
                           Refuser
                         </button>
                       </>
+                    )}
+                    {transfer.status === 'approved' && (
+                      <button
+                        type="button"
+                        onClick={() => onTransit(transfer)}
+                        disabled={actingId === transfer.id}
+                        className="rounded-md px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 disabled:opacity-50"
+                      >
+                        En transit
+                      </button>
+                    )}
+                    {transfer.status === 'in_transit' && (
+                      <button
+                        type="button"
+                        onClick={() => onReceive(transfer)}
+                        disabled={actingId === transfer.id}
+                        className="rounded-md px-2 py-1 text-xs font-medium text-teal-600 hover:bg-teal-50 disabled:opacity-50"
+                      >
+                        Marquer reçu ✓
+                      </button>
                     )}
 
                     <RowActions
@@ -3809,6 +3833,10 @@ export default function LogisticsPage({
     try {
       if (actionName === 'approve') {
         await approveLogisticsWarehouseTransfer(transfer.id)
+      } else if (actionName === 'transit') {
+        await transitLogisticsWarehouseTransfer(transfer.id)
+      } else if (actionName === 'receive') {
+        await receiveLogisticsWarehouseTransfer(transfer.id)
       } else {
         await rejectLogisticsWarehouseTransfer(transfer.id)
       }
@@ -4016,6 +4044,12 @@ export default function LogisticsPage({
             }
             onReject={(transfer) =>
               handleTransferAction(transfer, 'reject')
+            }
+            onTransit={(transfer) =>
+              handleTransferAction(transfer, 'transit')
+            }
+            onReceive={(transfer) =>
+              handleTransferAction(transfer, 'receive')
             }
           />
         </>

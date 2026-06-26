@@ -820,6 +820,60 @@ class WarehouseTransferViewSet(viewsets.ModelViewSet):
 
         return Response(self.get_serializer(transfer).data)
 
+    @action(detail=True, methods=['post'])
+    def transit(self, request, pk=None):
+        transfer = self.get_object()
+        if transfer.status != WarehouseTransfer.TransferStatus.APPROVED:
+            return Response(
+                {'detail': 'Le transfert doit être approuvé avant le transit.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        transfer.status = WarehouseTransfer.TransferStatus.IN_TRANSIT
+        transfer.save()
+        return Response(self.get_serializer(transfer).data)
+
+    @action(detail=True, methods=['post'])
+    def receive(self, request, pk=None):
+        from storage.models import Mouvement
+        from django.db import transaction as db_transaction
+
+        transfer = self.get_object()
+        if transfer.status != WarehouseTransfer.TransferStatus.IN_TRANSIT:
+            return Response(
+                {'detail': 'Le transfert doit être en transit pour être reçu.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        dest_name = (
+            str(transfer.destination_warehouse)
+            if transfer.destination_warehouse
+            else transfer.external_destination or 'destination externe'
+        )
+
+        with db_transaction.atomic():
+            for line in transfer.lines.select_related('article').all():
+                Mouvement.objects.create(
+                    article=line.article,
+                    type_mouvement='sortie',
+                    quantite=line.quantity,
+                    reference_document=transfer.transfer_number,
+                    commentaire=f'Transfert logistique vers {dest_name}',
+                    utilisateur=request.user,
+                )
+                if transfer.destination_warehouse:
+                    Mouvement.objects.create(
+                        article=line.article,
+                        type_mouvement='entree',
+                        quantite=line.quantity,
+                        reference_document=transfer.transfer_number,
+                        commentaire=f'Réception depuis {transfer.source_warehouse}',
+                        utilisateur=request.user,
+                    )
+            transfer.status = WarehouseTransfer.TransferStatus.RECEIVED
+            transfer.save()
+
+        return Response(self.get_serializer(transfer).data)
+
 
 class LogisticsTaskViewSet(viewsets.ModelViewSet):
     serializer_class = LogisticsTaskSerializer

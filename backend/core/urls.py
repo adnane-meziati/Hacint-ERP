@@ -72,54 +72,8 @@ def _send_otp(user, profile, purpose):
 
 def _user_payload(user):
     """Return a dict with user info + role derived from group membership."""
-    if user.is_superuser or user.is_staff:
-        role = 'admin'
-    else:
-        groups = list(user.groups.values_list('name', flat=True))
-        if 'Designer' in groups:
-            role = 'designer'
-        elif 'Programmateur' in groups:
-            role = 'programmer'
-        elif 'CNC' in groups:
-            role = 'cnc'
-        elif 'Assembly' in groups:
-            role = 'assembly'
-        elif 'Quality' in groups:
-            role = 'quality'
-        elif 'Storage' in groups:
-            role = 'storage'
-        elif 'Accounting' in groups:
-            role = 'accounting'
-        elif 'Etude Technique' in groups:
-            role = 'etude_technique'
-        elif 'Production Manager' in groups:
-            role = 'production_manager'
-        elif 'Storage Manager' in groups:
-            role = 'storage_manager'
-        elif 'Storage' in groups:
-            role = 'storage'
-        elif 'Accounting Manager' in groups:
-            role = 'accounting_manager'
-        elif 'Accounting' in groups:
-            role = 'accounting'
-        elif 'HR Manager' in groups:
-            role = 'hr_manager'
-        elif 'HR' in groups:
-            role = 'hr'
-        elif 'Logistics Manager' in groups:
-            role = 'logistics_manager'
-        elif 'Logistics' in groups:
-            role = 'logistics'
-        elif 'Installation Manager' in groups:
-            role = 'installation_manager'
-        elif 'Installation' in groups:
-            role = 'installation'
-        elif 'Sales Manager' in groups:
-            role = 'sales_manager'
-        elif 'Sales Employee' in groups:
-            role = 'sales_employee'
-        else:
-            role = 'admin'
+    from accounts.roles import role_from_user
+    role = role_from_user(user)
 
     try:
         must_change = user.profile.must_change_password
@@ -325,48 +279,14 @@ def me_view(request):
 
 def _set_role(user, role):
     """Sync a user's group + staff flag from a plain role string. Caller must save the user."""
+    from accounts.roles import ROLE_GROUPS
     user.groups.clear()
     user.is_staff = False
     if role == 'admin':
         user.is_staff = True
-    elif role == 'designer':
-        user.groups.add(Group.objects.get_or_create(name='Designer')[0])
-    elif role == 'programmer':
-        user.groups.add(Group.objects.get_or_create(name='Programmateur')[0])
-    elif role == 'cnc':
-        user.groups.add(Group.objects.get_or_create(name='CNC')[0])
-    elif role == 'assembly':
-        user.groups.add(Group.objects.get_or_create(name='Assembly')[0])
-    elif role == 'quality':
-        user.groups.add(Group.objects.get_or_create(name='Quality')[0])
-    elif role == 'storage':
-        user.groups.add(Group.objects.get_or_create(name='Storage')[0])
-    elif role == 'accounting':
-        user.groups.add(Group.objects.get_or_create(name='Accounting')[0])
-    elif role == 'etude_technique':
-        user.groups.add(Group.objects.get_or_create(name='Etude Technique')[0])
-    elif role == 'production_manager':
-        user.groups.add(Group.objects.get_or_create(name='Production Manager')[0])
-    elif role == 'storage_manager':
-        user.groups.add(Group.objects.get_or_create(name='Storage Manager')[0])
-    elif role == 'accounting_manager':
-        user.groups.add(Group.objects.get_or_create(name='Accounting Manager')[0])
-    elif role == 'hr_manager':
-        user.groups.add(Group.objects.get_or_create(name='HR Manager')[0])
-    elif role == 'hr':
-        user.groups.add(Group.objects.get_or_create(name='HR')[0])
-    elif role == 'logistics_manager':
-        user.groups.add(Group.objects.get_or_create(name='Logistics Manager')[0])
-    elif role == 'logistics':
-        user.groups.add(Group.objects.get_or_create(name='Logistics')[0])
-    elif role == 'installation_manager':
-        user.groups.add(Group.objects.get_or_create(name='Installation Manager')[0])
-    elif role == 'installation':
-        user.groups.add(Group.objects.get_or_create(name='Installation')[0])
-    elif role == 'sales_manager':
-        user.groups.add(Group.objects.get_or_create(name='Sales Manager')[0])
-    elif role == 'sales_employee':
-        user.groups.add(Group.objects.get_or_create(name='Sales Employee')[0])
+    elif role in ROLE_GROUPS:
+        for group_name in ROLE_GROUPS[role]:
+            user.groups.add(Group.objects.get_or_create(name=group_name)[0])
 
 
 def _set_assets(user, asset_ids):
